@@ -43,17 +43,11 @@ jobs:
           git init --quiet --initial-branch main
           git add .
           git -c user.name=selfcheck -c user.email=selfcheck@example.invalid commit --quiet --message "chore: initial commit"
-      - name: Initialise for the content set
+      # init installs what the generated repository declares and then runs its own validation, so a failure here is a failed selfcheck.
+      - name: Initialise and validate for the content set
         working-directory: ${{ runner.temp }}/generated
         env:
           CONTENT: ${{ matrix.content }}
         run: |
           pnpm install --frozen-lockfile
-          pnpm run init --content "$CONTENT" --yes
-      - name: Install what the generated repository declares
-        working-directory: ${{ runner.temp }}/generated
-        # The initialiser prunes workspace packages and dependencies, so the lockfile it started from no longer matches.
-        run: pnpm install --no-frozen-lockfile
-      - name: Validate the generated repository
-        working-directory: ${{ runner.temp }}/generated
-        run: pnpm run validate
+          pnpm run init --content "$CONTENT" --name selfcheck --owner Example --yes
