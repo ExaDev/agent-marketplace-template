@@ -25,9 +25,10 @@ Requirements: the latest Node LTS, pnpm (the version is pinned in `packageManage
 
 - `--name`: the repository and package name. Asked for when omitted.
 - `--marketplace-name`: the name of the Claude Code marketplace, written to `.claude-plugin/marketplace.json` and to the install commands. It defaults to `--name`, and differs from it when a marketplace called `acme` lives in a repository called `agent-marketplace`. It needs the `claude` content type.
+- `--contact`: an email address or an http(s) URL that receives security reports and code of conduct reports. It is written to `SECURITY.md` and `CODE_OF_CONDUCT.md` for every content set. Asked for when omitted, and an error with `--yes`.
 - `--owner`, `--org`, `--licence`, `--examples`, `--dir`, `--yes` and `--no-validate`: run `pnpm run init --help` for each.
 
-The initialiser also replaces this README with one written for the generated repository, from `scripts/init/README.template.md`, and gives the marketplace a neutral description in place of the template's.
+The initialiser also replaces this README with one written for the generated repository, from `scripts/init/README.template.md`, and gives the marketplace a neutral description in place of the template's. It writes the repository's own organisation and name into the documentation's install and API examples, and `repository`, `homepage` and `bugs` into `package.json` and each plugin manifest.
 
 ## Content options
 

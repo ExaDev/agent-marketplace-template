@@ -1,6 +1,6 @@
 # Protecting `main` with a ruleset
 
-The template ships no ruleset and no secrets, because both are settings on a particular repository. This page is a recipe to apply deliberately, once the repository exists.
+This repository ships no ruleset and no secrets, because both are settings on a particular repository. This page is a recipe to apply deliberately, once the repository exists.
 
 ## Availability
 

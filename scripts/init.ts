@@ -26,6 +26,12 @@ import { marketplaceSchema, packageJsonSchema, pluginManifestSchema, readJson } 
 export const TEMPLATE_NAME = 'agent-marketplace-template';
 export const TEMPLATE_ORG = 'ExaDev';
 export const TEMPLATE_OWNER = 'ExaDev';
+/** Stand-ins the template's SECURITY.md and CODE_OF_CONDUCT.md carry for the contact `--contact` supplies. */
+export const SECURITY_CONTACT_TOKEN = 'SECURITY_CONTACT_PLACEHOLDER';
+export const CONDUCT_CONTACT_TOKEN = 'CONDUCT_CONTACT_PLACEHOLDER';
+/** The template's illustrations of the repository's own location (`<owner>/<repo>`, `your-org/your-marketplace`) and own marketplace name (`your-marketplace`). Third-party illustrations such as `your-org/formatter` are deliberately not matched. */
+export const OWN_REPOSITORY_ILLUSTRATIONS = ['your-org/your-marketplace', '<owner>/<repo>'] as const;
+export const OWN_MARKETPLACE_ILLUSTRATION = 'your-marketplace';
 
 /** SPDX-style identifier npm and Claude Code accept for a package that grants no licence. */
 const UNLICENSED = 'UNLICENSED';
@@ -44,6 +50,8 @@ export interface InitOptions {
   owner: string;
   /** GitHub organisation or user, written into repository URLs. */
   org: string;
+  /** Email address or http(s) URL that receives security reports and code of conduct reports. */
+  contact: string;
   content: readonly SelectableContent[];
   licence: Licence;
   examples: Examples;
@@ -52,6 +60,20 @@ export interface InitOptions {
 }
 
 const NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const EMAIL_PATTERN = /^[^\s@<>`:/]+@[^\s@<>`:/]+\.[^\s@<>`:/]+$/;
+
+/** Whether the value is an email address or an absolute http(s) URL. */
+export function isContact(value: string): boolean {
+  if (EMAIL_PATTERN.test(value)) return true;
+  if (/[\s`]/.test(value)) return false;
+  const url = URL.parse(value);
+  return url !== null && (url.protocol === 'http:' || url.protocol === 'https:');
+}
+
+/** The repository's own URL; the organisation is a GitHub organisation or user. */
+function repositoryUrl(options: Pick<InitOptions, 'org' | 'name'>): string {
+  return `https://github.com/${options.org}/${options.name}`;
+}
 /** The generated repository's README, owned by the template and written over the template's own README.md. */
 const README_TEMPLATE = join('scripts', 'init', 'README.template.md');
 /** Written as the marketplace description in place of the template's, which describes the template. */
@@ -64,6 +86,7 @@ const SKIPPED_FILES = new Set(['pnpm-lock.yaml']);
 export function applyInit(options: InitOptions, manifest: ContentManifest = CONTENT_MANIFEST): void {
   if (!NAME_PATTERN.test(options.name)) throw new Error(`--name "${options.name}" must be lower-case words joined by hyphens`);
   if (!NAME_PATTERN.test(options.marketplaceName)) throw new Error(`--marketplace-name "${options.marketplaceName}" must be lower-case words joined by hyphens`);
+  if (!isContact(options.contact)) throw new Error(`--contact "${options.contact}" must be an email address or an http(s) URL`);
   const { dir } = options;
   const selected = selectedTypes(options.content);
   const hasClaude = selected.has('claude');
@@ -87,9 +110,7 @@ export function applyInit(options: InitOptions, manifest: ContentManifest = CONT
 
   forEachTextFile(dir, (path, text) => {
     const sectioned = applySections(text, selected, relative(dir, path));
-    const replaced = sectioned
-      .replaceAll(`${TEMPLATE_ORG}/${TEMPLATE_NAME}`, `${options.org}/${options.name}`)
-      .replaceAll(TEMPLATE_NAME, options.name);
+    const replaced = replaceOwnCoordinates(sectioned, options);
     if (replaced !== text) writeFileSync(path, replaced);
   });
 
@@ -99,6 +120,17 @@ export function applyInit(options: InitOptions, manifest: ContentManifest = CONT
 
   const broken = findBrokenRelativeLinks(dir);
   if (broken.length > 0) throw new Error(`the generated repository has broken relative links; wrap their sources in content markers:\n${broken.join('\n')}`);
+}
+
+/** Replaces what the template names for itself, and its placeholders, with the generated repository's values. */
+function replaceOwnCoordinates(text: string, options: InitOptions): string {
+  const repository = `${options.org}/${options.name}`;
+  let replaced = text.replaceAll(`${TEMPLATE_ORG}/${TEMPLATE_NAME}`, repository).replaceAll(TEMPLATE_NAME, options.name);
+  for (const illustration of OWN_REPOSITORY_ILLUSTRATIONS) replaced = replaced.replaceAll(illustration, repository);
+  return replaced
+    .replaceAll(OWN_MARKETPLACE_ILLUSTRATION, options.marketplaceName)
+    .replaceAll(SECURITY_CONTACT_TOKEN, options.contact)
+    .replaceAll(CONDUCT_CONTACT_TOKEN, options.contact);
 }
 
 /** Fills the README template's placeholders; throws on one it does not know, so a typo in the template cannot reach a generated repository. */
@@ -159,7 +191,9 @@ function writePackageJson(dir: string, options: InitOptions, manifest: ContentMa
   const selected = selectedTypes(options.content);
   const dropped = new Set(CONTENT_TYPES.filter((type) => !selected.has(type)).flatMap((type) => manifest.modules[type].devDependencies));
   const devDependencies = Object.fromEntries(Object.entries(pkg.devDependencies ?? {}).filter(([name]) => !dropped.has(name)));
-  writeJson(path, { ...pkg, name: options.name, scripts: buildScripts(selected, false), devDependencies });
+  const url = repositoryUrl(options);
+  const links = { repository: { type: 'git', url: `git+${url}.git` }, bugs: { url: `${url}/issues` }, homepage: `${url}#readme` };
+  writeJson(path, { ...pkg, name: options.name, ...links, scripts: buildScripts(selected, false), devDependencies });
 }
 
 function writeWorkspaceYaml(dir: string, selected: ReturnType<typeof selectedTypes>, manifest: ContentManifest): void {
@@ -187,7 +221,8 @@ function writePluginMetadata(dir: string, options: InitOptions): void {
     const manifest = readJson(path, pluginManifestSchema);
     const author = manifest.author === undefined ? {} : { author: { ...manifest.author, name: options.owner } };
     const license = options.licence === 'MIT' ? {} : { license: UNLICENSED };
-    writeJson(path, { ...manifest, ...author, ...license });
+    const url = repositoryUrl(options);
+    writeJson(path, { ...manifest, ...author, homepage: url, repository: url, ...license });
   }
 }
 
@@ -237,10 +272,12 @@ const USAGE = `Usage: pnpm run init [options]
                       Claude Code marketplace name (lower-case, hyphenated; default: --name)
   --owner <name>      owner display name for the marketplace, plugin authors and licence
   --org <name>        GitHub organisation or user for repository URLs (default: the owner)
+  --contact <email-or-url>
+                      receives security reports and code of conduct reports; written to SECURITY.md and CODE_OF_CONDUCT.md
   --licence <kind>    MIT or proprietary (default MIT)
   --examples <kind>   keep or none (default keep)
   --dir <path>        repository to transform (default: the current directory)
-  --yes               never prompt; a missing --name or --owner is an error
+  --yes               never prompt; a missing --name, --owner or --contact is an error
   --no-validate       skip the install and validation that normally follow`;
 
 async function main(): Promise<void> {
@@ -251,6 +288,7 @@ async function main(): Promise<void> {
       'marketplace-name': { type: 'string' },
       owner: { type: 'string' },
       org: { type: 'string' },
+      contact: { type: 'string' },
       licence: { type: 'string', default: 'MIT' },
       examples: { type: 'string', default: 'keep' },
       dir: { type: 'string', default: process.cwd() },
@@ -266,12 +304,14 @@ async function main(): Promise<void> {
   const dir = resolve(values.dir);
   const name = values.name ?? (await ask('Repository name', values.yes, '--name'));
   const owner = values.owner ?? (await ask('Owner (display name)', values.yes, '--owner'));
+  const contact = values.contact ?? (await ask('Contact for security and conduct reports (email or URL)', values.yes, '--contact'));
   applyInit({
     dir,
     name,
     marketplaceName: values['marketplace-name'] ?? name,
     owner,
     org: values.org ?? owner,
+    contact,
     content: parseContentList(values.content),
     licence: parseChoice(values.licence, ['MIT', 'proprietary'], '--licence'),
     examples: parseChoice(values.examples, ['keep', 'none'], '--examples'),

@@ -55,7 +55,7 @@ jobs:
 
 # content:claude:start
   release:
-    # The template itself has no releases to cut: its plugin versions are placeholders that every generated repository starts from.
+    # A repository marked as a GitHub template has no releases to cut, so the job is skipped there.
     needs: validate
     if: ${{ github.event_name == 'push' && !github.event.repository.is_template }}
     runs-on: ubuntu-latest
