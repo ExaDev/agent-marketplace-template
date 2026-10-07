@@ -1,6 +1,6 @@
 {
   "name": "example-settings",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Minimal example of plugin default settings, including the agent setting.",
   "author": { "name": "ExaDev" },
   "license": "MIT"

@@ -1,6 +1,6 @@
 {
   "name": "example-workflows",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Minimal example of a plugin dynamic workflow.",
   "author": {
     "name": "ExaDev"
