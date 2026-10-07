@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   release:
+    # The template itself has no releases to cut: its plugin versions are placeholders that every generated repository starts from.
+    if: ${{ !github.event.repository.is_template }}
     runs-on: ubuntu-latest
     env:
       # RELEASE_TOKEN is the repository secret described in docs/releasing.md. Without it the job falls back to the workflow token, which works only where main accepts a direct push.
