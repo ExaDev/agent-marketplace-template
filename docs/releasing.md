@@ -23,7 +23,7 @@ The tag format is `<plugin>--v<version>`. It matches what `claude plugin tag` pr
 
 ## The release job
 
-The `release` job in `.github/workflows/ci.yml` runs on every push to `main`, one run at a time, and calls `pnpm run release`. It checks out the full history and authenticates with the `RELEASE_TOKEN` repository secret, falling back to the workflow token when the secret is absent.
+The `release` job in `.github/workflows/ci.yml` runs on every push to `main`, one run at a time, and calls `pnpm run release`. It checks out the full history and authenticates with the `RELEASE_TOKEN` repository secret, falling back to the workflow token when the secret is absent, which works only where `main` accepts a direct push from that token (no ruleset; see [rulesets.md](rulesets.md)).
 
 The tool pushes directly to `main`. It does not open a pull request, and a pull-request based release plugin cannot be combined with it. That has two consequences.
 

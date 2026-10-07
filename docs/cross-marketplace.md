@@ -48,7 +48,7 @@ Three conditions must hold for a dependency in another marketplace to install:
    ```
 
    Only the root marketplace's list applies, for the whole dependency chain. If the field is missing, an entry-declared dependency refuses the install with `Dependency "..." is in marketplace "...", which is not in the allowlist`, and a dependency declared in `plugin.json` is skipped silently and the plugin then fails to load. A dependency the user has already installed and enabled at the same scope bypasses the check.
-2. **The dependency's marketplace is registered on the machine.** Claude Code does not add a marketplace on behalf of a plugin. When it is missing, the error is `Dependency "<dep>" is not installed`, and the documented fix is to add that marketplace and run `/reload-plugins`, which installs the missing dependencies it can resolve. For a team, register every marketplace a bundle depends on in the project's `extraKnownMarketplaces`, beside `enabledPlugins` ([distribution.md](distribution.md)).
+2. **The dependency's marketplace is registered on the machine.** Claude Code does not add a marketplace on behalf of a plugin. When it is missing, the error is `Dependency "<dep>" is not installed`, and the documented fix is to add that marketplace and run `/reload-plugins`, which installs the missing dependencies it can resolve. Adding the marketplace after the dependent plugin is installed also resolves the dependency (the add reports it as an added dependency). For a team, register every marketplace a bundle depends on in the project's `extraKnownMarketplaces`, beside `enabledPlugins` ([distribution.md](distribution.md)).
 3. **A version range has a tag to resolve against.** See below.
 
 ## Tags and version ranges

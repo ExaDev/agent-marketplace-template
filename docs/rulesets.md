@@ -70,6 +70,8 @@ The field names are from GitHub's [repository rules API](https://docs.github.com
 
 The release job pushes straight to `main`, and `bypass_mode` must be `always` for a direct push to bypass the pull request rule (`pull_request` mode only lets the actor bypass through a pull request). The actor types the API accepts are `Integration` (a GitHub App), `OrganizationAdmin`, `RepositoryRole`, `Team`, `DeployKey` and `User`. Prefer a GitHub App: install it on the repository with contents write, mint an installation token in the release workflow or store one as the `RELEASE_TOKEN` secret, and list the App as the `Integration` actor. A deploy key with write access, listed as a `DeployKey` actor, is the fallback.
 
+The `github-actions` identity behind the workflow's own `GITHUB_TOKEN` cannot be a bypass actor: the API answers `Actor GitHub Actions integration must be part of the ruleset source or owner organization`. With only that token, the release job's push is rejected with `GH013: Repository rule violations found` (`Changes must be made through a pull request` and the required status checks), so a repository with this ruleset must supply a different identity in `RELEASE_TOKEN`: an installation token of a GitHub App owned by the organisation or user that owns the repository, or a token belonging to an administrator when `OrganizationAdmin` or a `RepositoryRole` is the bypass actor. Without any bypass actor, a direct push is rejected for administrators too.
+
 Keep the bypass narrow. Humans are not bypass actors, and a bypass actor should hold only the permission the release needs. Check that the bypass works with a real release on a throwaway repository, not by reading the JSON.
 
 ## Review settings to decide
