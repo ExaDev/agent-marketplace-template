@@ -1,0 +1,7 @@
+[
+  {
+    "name": "example-heartbeat",
+    "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/heartbeat.sh",
+    "description": "Example heartbeat lines from the example-monitors plugin"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "name": "marketplace-maintainer",
+  "version": "0.1.0",
+  "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout.",
+  "author": { "name": "ExaDev" },
+  "license": "MIT"
+}
