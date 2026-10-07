@@ -1,0 +1,6 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-marketplace-template",
+  "owner": { "name": "ExaDev" },
+  "plugins": []
+}
