@@ -74,7 +74,7 @@ To install the skills with the `skills` CLI instead, run `npx skills add <owner>
 .claude-plugin/marketplace.json   the catalogue, one entry per plugin
 plugins/<name>/                   one pnpm workspace package per plugin
 scripts/                          init, version sync, checks, README table
-.github/workflows/                validate, release, ci-skip-guard, template-selfcheck
+.github/workflows/                ci, ci-skip-guard, template-selfcheck
 docs/                             authoring, distribution, releasing and the rest
 ```
 
