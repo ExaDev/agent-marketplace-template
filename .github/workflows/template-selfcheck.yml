@@ -52,4 +52,4 @@ jobs:
           CLAUDE_COMMAND: npx --yes @anthropic-ai/claude-code
         run: |
           pnpm install --frozen-lockfile
-          pnpm run init --content "$CONTENT" --name selfcheck --owner Example --yes
+          pnpm run init --content "$CONTENT" --name selfcheck --owner Example --contact security@example.com --yes

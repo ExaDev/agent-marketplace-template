@@ -92,7 +92,7 @@ An entry without `ref` does not cover a source that has one, and `github` and `g
 
 ## Keeping people up to date
 
-A user receives a new copy of a plugin only when its version changes: it comes from `plugin.json`, and this template bumps it on release. Without auto-update, people run `/plugin marketplace update <name>` or `claude plugin update <plugin>@<name>`. For a private marketplace see [private-repo-auth.md](private-repo-auth.md).
+A user receives a new copy of a plugin only when its version changes: it comes from `plugin.json`, and this repository bumps it on release. Without auto-update, people run `/plugin marketplace update <name>` or `claude plugin update <plugin>@<name>`. For a private marketplace see [private-repo-auth.md](private-repo-auth.md).
 
 <!-- content:skills:start -->
 To install the same skills into agents other than Claude Code, see [skills-cli.md](skills-cli.md).

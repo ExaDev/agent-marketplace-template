@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a security problem. Use the repository's private reporting channel: on GitHub, open the Security tab and choose "Report a vulnerability". If that is not enabled, email `SECURITY_CONTACT_PLACEHOLDER` (the owner of a repository generated from this template replaces this address, and enables private vulnerability reporting under Settings, Code security).
+Do not open a public issue for a security problem. Use the repository's private reporting channel: on GitHub, open the Security tab and choose "Report a vulnerability". If that is not enabled, contact `SECURITY_CONTACT_PLACEHOLDER`.
 
 Say what is affected, how to reproduce it and what an attacker gains. Expect an acknowledgement, and a fix or a decision on whether it will be fixed, after that.
 
@@ -12,7 +12,7 @@ A plugin installed from a marketplace runs with the installing user's privileges
 
 - a plugin or script in this repository that runs, reads or sends something its description does not say
 - a workflow that can be made to execute code from a pull request with a privileged token, or to leak a secret
-- a template default that makes a generated repository unsafe, such as a permissive ruleset or a committed secret
+- a default configuration that makes the repository unsafe, such as a permissive ruleset or a committed secret
 
 ## For people installing plugins
 

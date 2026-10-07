@@ -6,4 +6,4 @@ In short: be respectful, assume good faith, accept feedback on your work gracefu
 
 ## Enforcement
 
-Report unacceptable behaviour to `CONDUCT_CONTACT_PLACEHOLDER`. The owner of a repository generated from this template must replace that placeholder with a monitored address, because a code of conduct without a working contact cannot be enforced. Reports are handled in confidence, and the maintainers follow the enforcement guidelines in the Contributor Covenant: a correction, a warning, a temporary ban or a permanent ban, depending on the behaviour.
+Report unacceptable behaviour to `CONDUCT_CONTACT_PLACEHOLDER`. Reports are handled in confidence, and the maintainers follow the enforcement guidelines in the Contributor Covenant: a correction, a warning, a temporary ban or a permanent ban, depending on the behaviour.

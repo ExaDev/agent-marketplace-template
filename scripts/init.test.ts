@@ -13,7 +13,7 @@ import {
   type ContentManifest,
   type SelectableContent,
 } from './content.ts';
-import { applyInit, TEMPLATE_NAME, type InitOptions } from './init.ts';
+import { applyInit, isContact, TEMPLATE_NAME, type InitOptions } from './init.ts';
 import { makeTempDir } from './lib/fixture.ts';
 import { runInherited } from './lib/run.ts';
 import { packageJsonSchema, readJson } from './lib/schemas.ts';
@@ -34,7 +34,7 @@ function copyOfTemplate(): string {
 }
 
 function options(dir: string, content: readonly SelectableContent[], overrides: Partial<InitOptions> = {}): InitOptions {
-  return { dir, name: 'acme-marketplace', marketplaceName: 'acme-marketplace', owner: 'Acme Ltd', org: 'acme-org', content, licence: 'MIT', examples: 'keep', year: 2031, ...overrides };
+  return { dir, name: 'acme-marketplace', marketplaceName: 'acme-marketplace', owner: 'Acme Ltd', org: 'acme-org', contact: 'security@acme.example', content, licence: 'MIT', examples: 'keep', year: 2031, ...overrides };
 }
 
 function listFiles(root: string): Map<string, string> {
@@ -215,6 +215,64 @@ describe('applyInit', () => {
       if (path === 'pnpm-lock.yaml') continue;
       assert.ok(!text.includes(TEMPLATE_NAME), `${path} still names the template`);
     }
+  });
+
+  for (const content of [['skills'], ['claude'], ['skills', 'claude']] as const) {
+    it(`leaves no template voice, placeholder or template name in the ${content.join(',')} repository`, () => {
+      const dir = copyOfTemplate();
+      applyInit(options(dir, content));
+      for (const [path, text] of listFiles(dir)) {
+        if (path === 'pnpm-lock.yaml') continue;
+        assert.ok(!text.includes('generated from this template'), `${path} speaks of the template it was generated from`);
+        assert.ok(!/this template/i.test(text), `${path} speaks in the template's voice`);
+        assert.ok(!text.includes('PLACEHOLDER'), `${path} keeps a placeholder`);
+        assert.ok(!text.includes(TEMPLATE_NAME), `${path} names the template repository`);
+      }
+    });
+  }
+
+  it('writes the contact to the security policy and the code of conduct', () => {
+    const dir = copyOfTemplate();
+    applyInit(options(dir, ['skills'], { contact: 'https://acme.example/report' }));
+    assert.ok(readFileSync(join(dir, 'SECURITY.md'), 'utf8').includes('`https://acme.example/report`'));
+    assert.ok(readFileSync(join(dir, 'CODE_OF_CONDUCT.md'), 'utf8').includes('`https://acme.example/report`'));
+  });
+
+  it('fills the repository and marketplace names into the distribution docs and leaves third-party examples alone', () => {
+    const dir = copyOfTemplate();
+    applyInit(options(dir, ['claude'], { marketplaceName: 'acme' }));
+    const distribution = readFileSync(join(dir, 'docs/distribution.md'), 'utf8');
+    assert.ok(distribution.includes('claude plugin marketplace add acme-org/acme-marketplace --scope project'));
+    assert.ok(distribution.includes('"acme": {'));
+    assert.ok(distribution.includes('example-skills@acme'));
+    assert.ok(distribution.includes('{ "source": "github", "repo": "your-org/*" }'));
+    assert.ok(!/<owner>\/<repo>|your-org\/your-marketplace|your-marketplace/.test(distribution));
+    assert.ok(readFileSync(join(dir, 'docs/cross-marketplace.md'), 'utf8').includes('your-org/formatter'));
+    assert.ok(readFileSync(join(dir, 'docs/rulesets.md'), 'utf8').includes('repos/acme-org/acme-marketplace/rulesets'));
+  });
+
+  it('writes repository metadata to package.json and each plugin manifest', () => {
+    const dir = copyOfTemplate();
+    applyInit(options(dir, ['claude']));
+    const url = 'https://github.com/acme-org/acme-marketplace';
+    const pkg = readJson(join(dir, 'package.json'), packageJsonSchema);
+    assert.deepEqual(pkg.repository, { type: 'git', url: `git+${url}.git` });
+    assert.deepEqual(pkg.bugs, { url: `${url}/issues` });
+    assert.equal(pkg.homepage, `${url}#readme`);
+    const manifest = JSON.parse(readFileSync(join(dir, 'plugins/example-skills/.claude-plugin/plugin.json'), 'utf8')) as unknown;
+    assert.ok(typeof manifest === 'object' && manifest !== null);
+    assert.equal('repository' in manifest && manifest.repository, url);
+    assert.equal('homepage' in manifest && manifest.homepage, url);
+  });
+
+  it('rejects a contact that is neither an email address nor an http(s) URL', () => {
+    for (const contact of ['', 'security', 'ftp://acme.example', 'a b@acme.example', 'mailto:x@acme.example']) {
+      assert.throws(() => applyInit(options(copyOfTemplate(), ['skills'], { contact })), /--contact/, contact);
+    }
+  });
+
+  it('accepts an email address and an http(s) URL as a contact', () => {
+    for (const contact of ['security@acme.example', 'http://acme.example/report', 'https://acme.example/report?x=1']) assert.ok(isContact(contact), contact);
   });
 
   it('writes a proprietary notice and marks plugins unlicensed', () => {
