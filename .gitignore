@@ -4,3 +4,8 @@ node_modules/
 .claude/settings.local.json
 .playwright-mcp/
 .env*
+
+# Tracked on purpose; a global ignore may hide these.
+!AGENTS.md
+!CLAUDE.md
+!.claude/

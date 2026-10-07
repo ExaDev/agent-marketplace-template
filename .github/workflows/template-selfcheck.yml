@@ -1,0 +1,59 @@
+name: template-selfcheck
+
+# Generates a throwaway repository from the template for every content set and validates it, so the initialiser and the template cannot drift apart. The schedule catches a change in what lts/* resolves to.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template-selfcheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selfcheck:
+    name: selfcheck (${{ matrix.content }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # A literal list, never computed, so the matrix cannot be empty.
+        content: [skills, claude, 'skills,claude']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - name: Copy the committed template into a fresh repository
+        run: |
+          set -euo pipefail
+          generated="${RUNNER_TEMP}/generated"
+          mkdir -p "$generated"
+          git archive --format=tar HEAD | tar -x -C "$generated"
+          cd "$generated"
+          git init --quiet --initial-branch main
+          git add .
+          git -c user.name=selfcheck -c user.email=selfcheck@example.invalid commit --quiet --message "chore: initial commit"
+      - name: Initialise for the content set
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          CONTENT: ${{ matrix.content }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run init --content "$CONTENT" --yes
+      - name: Install what the generated repository declares
+        working-directory: ${{ runner.temp }}/generated
+        # The initialiser prunes workspace packages and dependencies, so the lockfile it started from no longer matches.
+        run: pnpm install --no-frozen-lockfile
+      - name: Validate the generated repository
+        working-directory: ${{ runner.temp }}/generated
+        run: pnpm run validate
