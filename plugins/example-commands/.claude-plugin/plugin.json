@@ -1,0 +1,7 @@
+{
+  "name": "example-commands",
+  "version": "0.1.0",
+  "description": "Minimal example of the command component type: one flat slash command that takes arguments.",
+  "author": { "name": "ExaDev" },
+  "license": "MIT"
+}

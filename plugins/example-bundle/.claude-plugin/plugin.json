@@ -1,0 +1,11 @@
+{
+  "name": "example-bundle",
+  "version": "0.1.0",
+  "description": "Minimal example of a bundle: a plugin with no components that installs other plugins as dependencies.",
+  "author": { "name": "ExaDev" },
+  "license": "MIT",
+  "dependencies": [
+    { "name": "example-skills", "version": "^0.1.0" },
+    { "name": "example-commands", "version": "^0.1.0" }
+  ]
+}

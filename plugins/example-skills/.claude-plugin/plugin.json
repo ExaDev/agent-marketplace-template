@@ -1,0 +1,7 @@
+{
+  "name": "example-skills",
+  "version": "0.1.0",
+  "description": "Minimal example of the skill component type: two skills, one with a reference file and a script, one that reads a shared file.",
+  "author": { "name": "ExaDev" },
+  "license": "MIT"
+}
