@@ -1,6 +1,6 @@
 {
   "name": "example-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Minimal example of a plugin-provided MCP server: a dependency-free stdio server with one tool.",
   "author": { "name": "ExaDev" },
   "license": "MIT"
