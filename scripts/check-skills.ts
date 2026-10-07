@@ -3,6 +3,7 @@ import { join, posix, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { detectLayout, listPluginNames, MARKETPLACE_FILE, PLUGINS_DIR, SKILLS_DIR } from './lib/layout.ts';
 import { Problems } from './lib/problems.ts';
+import { reservedPluginNameReason } from './lib/reserved-names.ts';
 import { runCaptured } from './lib/run.ts';
 import { marketplaceSchema, pluginManifestSchema, readJson } from './lib/schemas.ts';
 import { findSkillFiles, readSkillFrontmatter } from './lib/skills.ts';
@@ -71,6 +72,8 @@ function checkMarketplace(root: string, problems: Problems, reachable: Set<strin
   for (const entry of marketplace.plugins) {
     if (entryNames.has(entry.name)) problems.add(`marketplace lists "${entry.name}" more than once`);
     entryNames.add(entry.name);
+    const reserved = reservedPluginNameReason(entry.name);
+    if (reserved !== undefined) problems.add(`marketplace entry "${entry.name}": Claude Code reserves the name because it ${reserved}, so a third party's plugin cannot use it`);
     if ('skills' in entry) problems.add(`marketplace entry "${entry.name}" has a skills key; skills are found by their default location`);
     if ('version' in entry) problems.add(`marketplace entry "${entry.name}" has a version; the plugin's plugin.json owns it`);
     // Object sources (github, git-subdir and so on) are exposed through their own repository, never listed here.

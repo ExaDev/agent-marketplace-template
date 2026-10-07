@@ -94,7 +94,7 @@ Each plugin is a private pnpm workspace package. Its `package.json` carries the 
 | --- | --- |
 | `pnpm run validate` | Everything CI runs on a pull request apart from commit linting |
 | `pnpm run typecheck` | Type-check the scripts |
-| `pnpm run check:skills` | No `skills` key anywhere, unique skill names, one listing per tool |
+| `pnpm run check:skills` | No `skills` key anywhere, unique skill names, one listing per tool, no plugin name Claude Code reserves |
 | `pnpm run check:versions` | Each plugin's `package.json` and `plugin.json` versions agree and no entry sets one |
 | `pnpm run check:readme` | The plugin table is up to date |
 | `pnpm run check:ci-skip` | No CI skip tokens in commit messages |

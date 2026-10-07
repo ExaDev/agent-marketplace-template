@@ -8,6 +8,8 @@ Every component type has one example plugin to copy from. Run any of them in a s
 claude --plugin-dir ./plugins/example-skills
 ```
 
+A plugin name cannot be one Claude Code reserves for Anthropic's own plugins: it cannot start with `claude-`, `anthropic-`, `anthropics-` or `cc-plugin-`, equal `claude`, `anthropic`, `anthropics`, `claude-code` or `claude-mods`, or put `official` beside `claude` or `anthropic`. `pnpm run check:skills` rejects these on any Claude Code version, because an older release accepts the name and only a newer one fails.
+
 Check a plugin or the whole marketplace with `claude plugin validate ./plugins/<name>` and `claude plugin validate .`. Claude Code's references are the authority for field names: [plugin components](https://code.claude.com/docs/en/plugins/components), [the manifest reference](https://code.claude.com/docs/en/plugins/manifest-reference) and [the marketplace reference](https://code.claude.com/docs/en/plugins/marketplace-reference).
 
 Rules that apply to every plugin here:
