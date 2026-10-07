@@ -4,7 +4,7 @@ A minimal dynamic workflow.
 
 ## What it shows
 
-A workflow script in `workflows/hello-workflow.js`. It starts with an `export const meta` object literal giving a `name` and `description`, then a script body that calls `agent()`. The manifest's `workflows` key points at the directory. Plugin workflows are namespaced by the plugin name.
+A workflow script in `workflows/hello-workflow.js`. It starts with an `export const meta` object literal giving a `name` and `description`, then a script body that calls `agent()`. No manifest key is needed: `workflows/` is the default location, and setting a `workflows` key would replace that scan. Plugin workflows are namespaced by the plugin name.
 
 ## Try it
 

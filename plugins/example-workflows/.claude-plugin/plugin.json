@@ -2,7 +2,8 @@
   "name": "example-workflows",
   "version": "0.1.0",
   "description": "Minimal example of a plugin dynamic workflow.",
-  "author": { "name": "ExaDev" },
-  "license": "MIT",
-  "workflows": "./workflows/"
+  "author": {
+    "name": "ExaDev"
+  },
+  "license": "MIT"
 }
