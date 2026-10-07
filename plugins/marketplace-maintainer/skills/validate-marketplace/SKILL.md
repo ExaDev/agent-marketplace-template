@@ -1,4 +1,5 @@
 ---
+name: validate-marketplace
 description: Validate a marketplace checkout and every plugin in it. Use before committing marketplace changes or when asked whether the marketplace is valid.
 ---
 

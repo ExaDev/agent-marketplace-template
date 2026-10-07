@@ -1,4 +1,5 @@
 ---
+name: remove-plugin
 description: Remove a plugin from a marketplace checkout. Use when asked to delete or unlist a plugin from .claude-plugin/marketplace.json.
 argument-hint: "<plugin-name>"
 disable-model-invocation: true

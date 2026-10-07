@@ -1,4 +1,5 @@
 ---
+name: add-plugin
 description: Add a plugin to a marketplace checkout. Use when asked to register a plugin directory under plugins/ in .claude-plugin/marketplace.json.
 argument-hint: "<plugin-name>"
 ---
