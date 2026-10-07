@@ -1,15 +1,17 @@
-name: validate
+name: ci
 
 # No path filter: a required check that is skipped by a filter never reports, and the pull request then waits forever.
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: validate-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -31,6 +33,7 @@ jobs:
           CLAUDE_COMMAND: npx --yes @anthropic-ai/claude-code
 
   commitlint:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       # Full history so the whole range of the pull request is available to commitlint.
@@ -49,3 +52,35 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+
+# content:claude:start
+  release:
+    # The template itself has no releases to cut: its plugin versions are placeholders that every generated repository starts from.
+    needs: validate
+    if: ${{ github.event_name == 'push' && !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Releases push commits and tags to main, so two runs must never overlap and a queued run must not be cancelled.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    env:
+      # RELEASE_TOKEN is the repository secret described in docs/releasing.md. Without it the job falls back to the workflow token, which works only where main accepts a direct push.
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ env.RELEASE_TOKEN }}
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run release
+        env:
+          GITHUB_TOKEN: ${{ env.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ env.RELEASE_TOKEN }}
+# content:claude:end

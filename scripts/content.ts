@@ -79,7 +79,6 @@ export const CONTENT_MANIFEST: ContentManifest = {
         'scripts/sync-plugin-version.ts',
         'scripts/sync-plugin-version.test.ts',
         'scripts/validate-plugins.ts',
-        '.github/workflows/release.yml',
         'docs/authoring.md',
         'docs/cross-marketplace.md',
         'docs/distribution.md',

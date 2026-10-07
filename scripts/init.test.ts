@@ -66,9 +66,12 @@ function assertLayout(root: string, content: readonly SelectableContent[]): void
   expectPresent('LICENSE', true);
   for (const path of ['scripts/init.ts', 'scripts/content.ts', 'scripts/init.test.ts', 'scripts/init', '.github/workflows/template-selfcheck.yml']) expectPresent(path, false);
 
-  for (const path of ['.claude-plugin/marketplace.json', 'plugins', 'plugins/example-skills/skills/word-count/SKILL.md', 'release-workspace.config.ts', 'scripts/sync-plugin-version.ts', 'scripts/validate-plugins.ts', '.github/workflows/release.yml', 'docs/releasing.md']) {
+  for (const path of ['.claude-plugin/marketplace.json', 'plugins', 'plugins/example-skills/skills/word-count/SKILL.md', 'release-workspace.config.ts', 'scripts/sync-plugin-version.ts', 'scripts/validate-plugins.ts', 'docs/releasing.md']) {
     expectPresent(path, claude);
   }
+  const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+  assert.equal(/^ {2}release:$/m.test(ci), claude, 'the release job belongs to the claude content type only');
+  assert.equal(ci.includes('content:'), false, 'no content marker may survive init');
   for (const path of ['skills/word-count/SKILL.md', 'skills/house-style/SKILL.md', 'shared/style-guide.md']) expectPresent(path, !claude);
   expectPresent('docs/skills-cli.md', skills);
 
