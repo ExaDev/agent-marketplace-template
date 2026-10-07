@@ -48,6 +48,8 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         env:
           CONTENT: ${{ matrix.content }}
+          # Runners do not have the Claude Code CLI; validate-plugins.ts runs this command in place of `claude`.
+          CLAUDE_COMMAND: npx --yes @anthropic-ai/claude-code
         run: |
           pnpm install --frozen-lockfile
           pnpm run init --content "$CONTENT" --name selfcheck --owner Example --yes
