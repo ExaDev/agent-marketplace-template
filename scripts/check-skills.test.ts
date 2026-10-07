@@ -44,6 +44,36 @@ describe('check-skills', () => {
     assert.match(text, /has a version/);
   });
 
+  describe('reserved plugin names', () => {
+    function withPluginName(name: string): string {
+      return marketplace({
+        '.claude-plugin/marketplace.json': { name: 'm', owner: { name: 'o' }, plugins: [{ name, source: './plugins/p' }] },
+        'plugins/p/.claude-plugin/plugin.json': { name, version: '0.1.0' },
+      });
+    }
+
+    const reserved = ['claude-style', 'anthropic-tools', 'anthropics-tools', 'cc-plugin-x', 'claude', 'anthropic', 'anthropics', 'claude-code', 'claude-mods', 'official-claude', 'x-official-anthropic', 'anthropic-official', 'Claude-Style'];
+    for (const name of reserved) {
+      it(`rejects "${name}"`, () => assert.match(problemsFor(withPluginName(name)).join('\n'), new RegExp(`marketplace entry "${name}": Claude Code reserves the name`)));
+    }
+
+    const allowed = ['style', 'no-claude-here', 'my-claude', 'claudette', 'official', 'official-tools', 'cc-plugin', 'claudecode'];
+    for (const name of allowed) {
+      it(`accepts "${name}"`, () => assert.deepEqual(problemsFor(withPluginName(name)), []));
+    }
+
+    it('rejects a reserved name on a remote entry too', () => {
+      const root = marketplace({
+        '.claude-plugin/marketplace.json': {
+          name: 'm',
+          owner: { name: 'o' },
+          plugins: [{ name: 'p', source: './plugins/p' }, { name: 'claude-remote', source: { source: 'github', repo: 'a/b' } }],
+        },
+      });
+      assert.match(problemsFor(root).join('\n'), /"claude-remote": Claude Code reserves the name because it starts with "claude-"/);
+    });
+  });
+
   it('rejects a source that does not start with ./', () => {
     const root = marketplace({ '.claude-plugin/marketplace.json': { name: 'm', owner: { name: 'o' }, plugins: [{ name: 'p', source: 'plugins/p' }] } });
     assert.match(problemsFor(root).join('\n'), /does not start with "\.\/"/);
