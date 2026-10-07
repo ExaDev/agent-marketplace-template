@@ -1,6 +1,6 @@
 {
   "name": "example-themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Minimal example of a plugin colour theme.",
   "author": { "name": "ExaDev" },
   "license": "MIT",
