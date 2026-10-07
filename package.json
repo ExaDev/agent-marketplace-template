@@ -3,6 +3,46 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "packageManager": "pnpm@12.8.1"
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"scripts/*.test.ts\"",
+    "check:skills": "tsx scripts/check-skills.ts --with-cli",
+    "check:versions": "tsx scripts/sync-plugin-version.ts --check",
+    "check:readme": "tsx scripts/generate-readme-table.ts --check",
+    "check:ci-skip": "tsx scripts/check-ci-skip-tokens.ts",
+    "lint:commits": "commitlint",
+    "validate:plugins": "tsx scripts/validate-plugins.ts",
+    "validate": "pnpm run typecheck && pnpm run check:skills && pnpm run check:versions && pnpm run check:readme && pnpm run validate:plugins",
+    "readme": "tsx scripts/generate-readme-table.ts",
+    "release": "semantic-release-workspace release --config release-workspace.config.ts",
+    "init": "tsx scripts/init.ts"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@commitlint/types": "21.2.3",
+    "@exadev/semantic-release-workspace": "3.1.25",
+    "@semantic-release/changelog": "7.0.0",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/exec": "7.1.0",
+    "@semantic-release/git": "11.0.1",
+    "@semantic-release/github": "12.0.10",
+    "@semantic-release/npm": "13.2.0",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "26.6.4",
+    "conventional-changelog-conventionalcommits": "9.3.1",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
+    "semantic-release": "25.0.9",
+    "skills": "1.7.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  }
 }

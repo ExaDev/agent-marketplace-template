@@ -2,3 +2,6 @@ packages:
   - plugins/*
 minimumReleaseAgeExclude:
   - '@exadev/*'
+# esbuild's install script only verifies a binary that the platform package already ships; tsx works without it.
+allowBuilds:
+  esbuild: false
