@@ -1,6 +1,82 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-marketplace-template",
-  "owner": { "name": "ExaDev" },
-  "plugins": []
+  "owner": {
+    "name": "ExaDev"
+  },
+  "metadata": {
+    "description": "A working example of every Claude Code plugin component type, in a marketplace that skills tooling can also read."
+  },
+  "plugins": [
+    {
+      "name": "example-agents",
+      "source": "./plugins/example-agents",
+      "description": "Minimal example of the agent component type: two subagent personas."
+    },
+    {
+      "name": "example-bin",
+      "source": "./plugins/example-bin",
+      "description": "Minimal example of a plugin executable on the Bash tool PATH."
+    },
+    {
+      "name": "example-bundle",
+      "source": "./plugins/example-bundle",
+      "description": "Minimal example of a bundle: a plugin with no components that installs other plugins as dependencies."
+    },
+    {
+      "name": "example-commands",
+      "source": "./plugins/example-commands",
+      "description": "Minimal example of the command component type: one flat slash command that takes arguments."
+    },
+    {
+      "name": "example-hooks",
+      "source": "./plugins/example-hooks",
+      "description": "Minimal example of plugin hooks: a PreToolUse Bash guard and an opt-in, hash-tracked SessionStart installer."
+    },
+    {
+      "name": "example-lsp",
+      "source": "./plugins/example-lsp",
+      "description": "Minimal example of a plugin-provided language server configuration for TypeScript and JavaScript."
+    },
+    {
+      "name": "example-mcp",
+      "source": "./plugins/example-mcp",
+      "description": "Minimal example of a plugin-provided MCP server: a dependency-free stdio server with one tool."
+    },
+    {
+      "name": "example-monitors",
+      "source": "./plugins/example-monitors",
+      "description": "Minimal example of a plugin background monitor."
+    },
+    {
+      "name": "example-output-styles",
+      "source": "./plugins/example-output-styles",
+      "description": "Minimal example of a plugin-provided output style."
+    },
+    {
+      "name": "example-settings",
+      "source": "./plugins/example-settings",
+      "description": "Minimal example of plugin default settings, including the agent setting."
+    },
+    {
+      "name": "example-skills",
+      "source": "./plugins/example-skills",
+      "description": "Minimal example of the skill component type: two skills, one with a reference file and a script, one that reads a shared file."
+    },
+    {
+      "name": "example-themes",
+      "source": "./plugins/example-themes",
+      "description": "Minimal example of a plugin colour theme."
+    },
+    {
+      "name": "example-workflows",
+      "source": "./plugins/example-workflows",
+      "description": "Minimal example of a plugin dynamic workflow."
+    },
+    {
+      "name": "marketplace-maintainer",
+      "source": "./plugins/marketplace-maintainer",
+      "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout."
+    }
+  ]
 }
