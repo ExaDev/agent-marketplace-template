@@ -34,7 +34,7 @@ function copyOfTemplate(): string {
 }
 
 function options(dir: string, content: readonly SelectableContent[], overrides: Partial<InitOptions> = {}): InitOptions {
-  return { dir, name: 'acme-marketplace', owner: 'Acme Ltd', org: 'acme-org', content, licence: 'MIT', examples: 'keep', year: 2031, ...overrides };
+  return { dir, name: 'acme-marketplace', marketplaceName: 'acme-marketplace', owner: 'Acme Ltd', org: 'acme-org', content, licence: 'MIT', examples: 'keep', year: 2031, ...overrides };
 }
 
 function listFiles(root: string): Map<string, string> {
@@ -55,7 +55,7 @@ function listFiles(root: string): Map<string, string> {
  * Independent oracle for a generated repository: hard-coded expectations, deliberately not derived from the
  * manifest, so a broken manifest rule makes it throw.
  */
-function assertLayout(root: string, content: readonly SelectableContent[]): void {
+function assertLayout(root: string, content: readonly SelectableContent[], marketplaceName = 'acme-marketplace'): void {
   const claude = content.includes('claude');
   const skills = content.includes('skills');
   const expectPresent = (path: string, present: boolean): void => assert.equal(existsSync(join(root, path)), present, `${path} should ${present ? '' : 'not '}exist`);
@@ -87,6 +87,43 @@ function assertLayout(root: string, content: readonly SelectableContent[]): void
   assert.equal('semantic-release' in devDependencies, claude, 'semantic-release dependency');
   assert.equal('skills' in devDependencies, skills, 'skills dependency');
   assert.equal(pkg.name, 'acme-marketplace');
+  assertReadme(root, content, marketplaceName);
+  if (claude) assertMarketplaceFile(root, marketplaceName);
+}
+
+/** The generated README describes the generated repository, for the chosen content set, and never the template. */
+function assertReadme(root: string, content: readonly SelectableContent[], marketplaceName: string): void {
+  const claude = content.includes('claude');
+  const skills = content.includes('skills');
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  assert.match(readme, claude ? new RegExp(`^# ${marketplaceName}$`, 'm') : /^# acme-marketplace$/m, 'title');
+  assert.ok(readme.includes('MIT, see [LICENSE](LICENSE).'), 'licence line');
+  assert.ok(!readme.includes('pnpm run init'), 'the init command belongs to the template');
+  assert.ok(!/scripts\/ +init/.test(readme), 'the layout line about scripts/init belongs to the template');
+  assert.ok(!readme.includes('{{') && !readme.includes('content:'), 'no placeholder or marker may survive');
+  assert.ok(!/template/i.test(readme), 'the README is not about a template');
+  assert.equal(readme.includes('/plugin marketplace add acme-org/acme-marketplace'), claude, 'marketplace add command');
+  assert.equal(readme.includes('pnpm run release'), claude, 'release command');
+  assert.equal(readme.includes('.claude-plugin/marketplace.json'), claude, 'marketplace layout line');
+  assert.ok(readme.includes(claude ? '`plugins/<name>/skills/<skill>/SKILL.md`' : '`skills/<skill>/SKILL.md`'), 'skills layout line');
+  assert.equal(readme.includes('npx skills add acme-org/acme-marketplace'), skills, 'skills CLI install');
+  assert.equal(readme.includes('docs/skills-cli.md'), skills, 'skills CLI docs link');
+  const table = readme.slice(readme.indexOf('<!-- plugins:start -->'), readme.indexOf('<!-- plugins:end -->'));
+  if (claude) {
+    assert.ok(table.includes('| Plugin | Description | Install |'), 'plugin table header');
+    assert.ok(table.includes(`\`/plugin install marketplace-maintainer@${marketplaceName}\``), 'install command uses the marketplace name');
+  } else {
+    assert.ok(table.includes('| Skill | Description |'), 'skill table header');
+    assert.ok(table.includes('[word-count](skills/word-count/SKILL.md)'), 'skill row');
+  }
+}
+
+/** marketplace.json carries the chosen name and a description that is not the template's. */
+function assertMarketplaceFile(root: string, marketplaceName: string): void {
+  const marketplace = JSON.parse(readFileSync(join(root, '.claude-plugin/marketplace.json'), 'utf8')) as unknown;
+  assert.ok(typeof marketplace === 'object' && marketplace !== null && 'name' in marketplace && 'metadata' in marketplace);
+  assert.equal(marketplace.name, marketplaceName);
+  assert.deepEqual(marketplace.metadata, { description: 'Plugins and skills maintained by Acme Ltd.' });
 }
 
 describe('--content normalisation', () => {
@@ -203,6 +240,24 @@ describe('applyInit', () => {
     assert.ok(!existsSync(join(dir, 'shared')));
   });
 
+  it('names the marketplace separately from the repository', () => {
+    const dir = copyOfTemplate();
+    applyInit(options(dir, ['skills', 'claude'], { marketplaceName: 'acme' }));
+    assertLayout(dir, ['skills', 'claude'], 'acme');
+    assert.equal(readJson(join(dir, 'package.json'), packageJsonSchema).name, 'acme-marketplace');
+    const readme = readFileSync(join(dir, 'README.md'), 'utf8');
+    assert.ok(readme.includes('/plugin marketplace add acme-org/acme-marketplace'), 'the repository keeps its own name');
+    assert.ok(readme.includes('/plugin install <plugin>@acme\n'), 'the install command uses the marketplace name');
+  });
+
+  it('rejects a marketplace name without the claude content type', () => {
+    assert.throws(() => applyInit(options(copyOfTemplate(), ['skills'], { marketplaceName: 'acme' })), /--marketplace-name needs the claude content type/);
+  });
+
+  it('rejects a marketplace name Claude Code would not accept', () => {
+    assert.throws(() => applyInit(options(copyOfTemplate(), ['claude'], { marketplaceName: 'Not Valid' })), /--marketplace-name/);
+  });
+
   it('rejects a name Claude Code would not accept', () => {
     assert.throws(() => applyInit(options(copyOfTemplate(), ['claude'], { name: 'Not Valid' })), /--name/);
   });
@@ -223,6 +278,10 @@ describe('applyInit', () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, ['claude']), mutated('skills', 'docs/skills-cli.md'));
       assert.throws(() => assertLayout(dir, ['claude']), /docs\/skills-cli\.md should not exist/);
+    });
+
+    it('detects the template README left in place', () => {
+      assert.throws(() => assertReadme(REPO_ROOT, ['skills', 'claude'], 'acme-marketplace'));
     });
 
     it('passes the same oracle with the real manifest', () => {

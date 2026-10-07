@@ -21,6 +21,14 @@ Or use the template directly: press "Use this template" on GitHub, or run `gh re
 
 Requirements: the latest Node LTS, pnpm (the version is pinned in `packageManager`) and git. The Claude Code CLI is needed to run the plugin validation.
 
+## Initialiser options
+
+- `--name`: the repository and package name. Asked for when omitted.
+- `--marketplace-name`: the name of the Claude Code marketplace, written to `.claude-plugin/marketplace.json` and to the install commands. It defaults to `--name`, and differs from it when a marketplace called `acme` lives in a repository called `agent-marketplace`. It needs the `claude` content type.
+- `--owner`, `--org`, `--licence`, `--examples`, `--dir`, `--yes` and `--no-validate`: run `pnpm run init --help` for each.
+
+The initialiser also replaces this README with one written for the generated repository, from `scripts/init/README.template.md`, and gives the marketplace a neutral description in place of the template's.
+
 ## Content options
 
 `--content` takes a comma-separated list of content types. The default is `all`, which is shorthand for `skills,claude`. Order does not matter and duplicates collapse. An unknown value or an empty list is an error that names the valid ones.
@@ -63,7 +71,7 @@ The table between the markers is generated from `.claude-plugin/marketplace.json
 /plugin install example-skills@<marketplace-name>
 ```
 
-The marketplace name is the `name` in `.claude-plugin/marketplace.json`, not the repository name.
+The marketplace name is the `name` in `.claude-plugin/marketplace.json`, not the repository name; `--marketplace-name` sets it.
 <!-- content:claude:start -->
 To install the skills with the `skills` CLI instead, run `npx skills add <owner>/<repo>`. [docs/distribution.md](docs/distribution.md) covers the other ways to put a marketplace in front of a team.
 <!-- content:claude:end -->
