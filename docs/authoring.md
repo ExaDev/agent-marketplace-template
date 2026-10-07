@@ -17,7 +17,9 @@ Rules that apply to every plugin here:
 - Refer to files inside the plugin through `${CLAUDE_PLUGIN_ROOT}`, which changes on every update, so never write state there. Use `${CLAUDE_PLUGIN_DATA}` for anything that must survive an update.
 - A `CLAUDE.md` at the plugin root is not loaded. Put instructions in a skill.
 - Do not put `version` in the marketplace entry. See [releasing.md](releasing.md).
+<!-- content:skills:start -->
 - Never add a `skills` key to a `plugin.json` or an entry. See [skills-cli.md](skills-cli.md).
+<!-- content:skills:end -->
 
 ## Skills
 

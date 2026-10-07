@@ -25,7 +25,9 @@ An entry's `source` can point at where the plugin actually lives. The plugin the
 - `ref` is a branch or tag. `sha` is a full 40-character lowercase commit. With both set, Claude Code checks out `sha`, so the pin holds even if the tag later moves or is deleted. A tag or branch alone can move, so pin a `sha` when the plugin must not change under you.
 - The other source types are `npm`, `archive` (a zip over HTTPS, with a `sha256` pin) and `command`, each with minimum Claude Code versions listed in the marketplace reference. None is enabled in this template, so it has no external dependency.
 - Do not put a `version` in the entry for these either. The version comes from the fetched plugin's own `plugin.json`.
+<!-- content:skills:start -->
 - A skill listed this way reaches the `skills` CLI through its own repository. Do not re-declare or copy it here, or it would be listed twice. See [skills-cli.md](skills-cli.md).
+<!-- content:skills:end -->
 
 ## Depend on a plugin from another marketplace
 

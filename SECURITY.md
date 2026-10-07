@@ -16,7 +16,11 @@ A plugin installed from a marketplace runs with the installing user's privileges
 
 ## For people installing plugins
 
-Read what a plugin does before you install it, in particular its hooks, MCP servers and `bin/` directory. Claude Code's guidance is at https://code.claude.com/docs/en/plugins/security. Pin a plugin to a tag or commit when you need it not to change underneath you ([docs/cross-marketplace.md](docs/cross-marketplace.md)).
+Read what a plugin does before you install it, in particular its hooks, MCP servers and `bin/` directory.
+Claude Code's guidance is at https://code.claude.com/docs/en/plugins/security.
+<!-- content:claude:start -->
+Pin a plugin to a tag or commit when you need it not to change underneath you ([docs/cross-marketplace.md](docs/cross-marketplace.md)).
+<!-- content:claude:end -->
 
 ## For maintainers
 

@@ -37,7 +37,11 @@ The default workflow token can read only the workflow's own repository, so a mar
 
 ## Auto-update
 
-Auto-update is off by default for a marketplace like this one. People turn it on from the Marketplaces tab in `/plugin`, or an administrator sets `autoUpdate` in managed settings ([distribution.md](distribution.md)). The background check uses the same non-prompting credential helpers:
+Auto-update is off by default for a marketplace like this one.
+<!-- content:claude:start -->
+People turn it on from the Marketplaces tab in `/plugin`, or an administrator sets `autoUpdate` in managed settings ([distribution.md](distribution.md)).
+<!-- content:claude:end -->
+The background check uses the same non-prompting credential helpers:
 
 - an SSH key in `ssh-agent`, or an HTTPS credential the helper can supply without asking, authenticates it;
 - a helper that would need to prompt makes the check fail quietly, and Claude Code then re-clones the marketplace and replaces the existing checkout, keeping the old one only if that clone also fails;
@@ -51,4 +55,7 @@ A plugin listed by a `github` or `git-subdir` source in a private repository is 
 
 ## The `skills` CLI
 
-`npx skills add <owner>/<repo>` uses the authentication already configured for the repository URL. The same stored credential serves both tools ([skills-cli.md](skills-cli.md)).
+`npx skills add <owner>/<repo>` uses the authentication already configured for the repository URL.
+<!-- content:skills:start -->
+The same stored credential serves both tools ([skills-cli.md](skills-cli.md)).
+<!-- content:skills:end -->

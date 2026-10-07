@@ -75,7 +75,11 @@ git push --force-with-lease
 
 ## Adding or changing a plugin
 
-[docs/authoring.md](docs/authoring.md) explains each component type and points at the example plugin to copy. In short: a plugin is a directory under `plugins/`, with a `package.json` (private, carrying the version), a `.claude-plugin/plugin.json`, its components, a README with a "Content owner" section, and an entry in `.claude-plugin/marketplace.json` whose `source` is `./plugins/<name>`. Do not set a `version` in the marketplace entry, do not add a `skills` key anywhere, and keep skill names unique across the repository. `pnpm run check:skills` and `pnpm run check:versions` enforce these.
+<!-- content:claude:start -->
+[docs/authoring.md](docs/authoring.md) explains each component type and points at the example plugin to copy.
+<!-- content:claude:end -->
+In short: a plugin is a directory under `plugins/`, with a `package.json` (private, carrying the version), a `.claude-plugin/plugin.json`, its components, a README with a "Content owner" section, and an entry in `.claude-plugin/marketplace.json` whose `source` is `./plugins/<name>`.
+Do not set a `version` in the marketplace entry, do not add a `skills` key anywhere, and keep skill names unique across the repository. `pnpm run check:skills` and `pnpm run check:versions` enforce these.
 
 ## Before you ask for review
 

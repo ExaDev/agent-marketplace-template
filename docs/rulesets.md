@@ -11,7 +11,9 @@ Rulesets are available on public repositories and on private repositories on a p
 - Pull requests are required, and only a rebase merge is allowed, so history stays linear and every commit on `main` is one the release tool can read.
 - The status checks `validate`, `commitlint` and `ci-skip-guard` must pass, against an up-to-date branch. They are the job names in `.github/workflows/validate.yml` and `.github/workflows/ci-skip-guard.yml`. The workflows have no path filter so these checks always report.
 - `main` cannot be deleted or force-pushed.
+<!-- content:claude:start -->
 - The identity that runs the release job can push to `main` directly, because the release tool commits and tags itself and does not open a pull request ([releasing.md](releasing.md)).
+<!-- content:claude:end -->
 
 ## The ruleset
 

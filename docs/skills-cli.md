@@ -31,7 +31,12 @@ A skill that needs its plugin's hooks, scripts or MCP server cannot work when in
 
 ## Plugins from other repositories
 
-A plugin listed here by a `github`, `git-subdir` or `url` source is not a local `./` entry, so the `skills` CLI does not look inside it through this marketplace. Its skills reach the CLI through the plugin's own repository. Never re-declare them here. See [cross-marketplace.md](cross-marketplace.md).
+A plugin listed here by a `github`, `git-subdir` or `url` source is not a local `./` entry, so the `skills` CLI does not look inside it through this marketplace.
+Its skills reach the CLI through the plugin's own repository.
+Never re-declare them here.
+<!-- content:claude:start -->
+See [cross-marketplace.md](cross-marketplace.md).
+<!-- content:claude:end -->
 
 ## A repository with only skills
 

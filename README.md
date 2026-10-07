@@ -63,7 +63,10 @@ The table between the markers is generated from `.claude-plugin/marketplace.json
 /plugin install example-skills@<marketplace-name>
 ```
 
-The marketplace name is the `name` in `.claude-plugin/marketplace.json`, not the repository name. To install the skills with the `skills` CLI instead, run `npx skills add <owner>/<repo>`. [docs/distribution.md](docs/distribution.md) covers the other ways to put a marketplace in front of a team.
+The marketplace name is the `name` in `.claude-plugin/marketplace.json`, not the repository name.
+<!-- content:claude:start -->
+To install the skills with the `skills` CLI instead, run `npx skills add <owner>/<repo>`. [docs/distribution.md](docs/distribution.md) covers the other ways to put a marketplace in front of a team.
+<!-- content:claude:end -->
 
 ## Layout
 
@@ -95,11 +98,21 @@ Each plugin is a private pnpm workspace package. Its `package.json` carries the 
 ## Documentation
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): the path from a first change to a merged pull request
+<!-- content:claude:start -->
 - [docs/authoring.md](docs/authoring.md): every component type, with the example plugin to copy
+<!-- content:claude:end -->
+<!-- content:claude:start -->
 - [docs/distribution.md](docs/distribution.md): how people and teams install from the marketplace
+<!-- content:claude:end -->
+<!-- content:claude:start -->
 - [docs/cross-marketplace.md](docs/cross-marketplace.md): listing and depending on plugins from other repositories
+<!-- content:claude:end -->
+<!-- content:skills:start -->
 - [docs/skills-cli.md](docs/skills-cli.md): installing the same skills with the `skills` CLI
+<!-- content:skills:end -->
+<!-- content:claude:start -->
 - [docs/releasing.md](docs/releasing.md): versions, tags and the release job
+<!-- content:claude:end -->
 - [docs/rulesets.md](docs/rulesets.md): a ruleset recipe for `main`
 - [docs/private-repo-auth.md](docs/private-repo-auth.md): git credentials for a private marketplace
 - [SECURITY.md](SECURITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
