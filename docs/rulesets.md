@@ -84,8 +84,10 @@ Where neither a ruleset nor auto-merge is available, `.github/workflows/merge-wh
 
 Labelling a pull request that is already green merges it at once, because the workflow also runs when the label is added or the pull request leaves draft. A push made after the check passed is never merged unseen, since the merge is pinned to the commit that was checked. Merging by hand still works, and a repository that has a ruleset and auto-merge can delete the workflow.
 
-The merge is made with the `MERGE_TOKEN` repository secret, not the workflow token, because a push made with the workflow token does not start the workflows that run on `main`. A fine-grained personal access token or a GitHub App installation token with contents and pull requests write is enough. Without the secret the workflow run fails instead of merging. Create the `automerge` label in the repository before using it.
+The merge is made with the workflow token, which the job grants contents and pull requests write, so no secret is needed. GitHub does not start workflows from a push made with that token, so once a merge has happened the workflow dispatches `ci` on the default branch, which runs `validate`.
 <!-- content:claude:start -->
 
-The `release` job is one of the workflows that must start on the merge, so there is no fallback to the workflow token. The token can hold the same value as `RELEASE_TOKEN` ([releasing.md](releasing.md)).
+The dispatched run also starts the `release` job for the merged commits; the `release` job accepts a dispatch on the default branch as well as a push.
 <!-- content:claude:end -->
+
+The `MERGE_TOKEN` repository secret is an optional override, for a repository whose ruleset only lets a bypass identity merge: a fine-grained personal access token or a GitHub App installation token with contents and pull requests write. A merge made with it starts `ci` through the push itself, so the workflow does not dispatch. The workflow token may be refused a merge that changes files under `.github/workflows`; merge those by hand or with the secret. Create the `automerge` label in the repository before using it.
