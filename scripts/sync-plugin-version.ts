@@ -10,32 +10,40 @@ const VERSION_MEMBER = /("version"\s*:\s*)"[^"]*"/;
 
 /**
  * Makes each plugin's `.claude-plugin/plugin.json` version equal the version in its `package.json`, which the
- * release tool bumps. With `check`, changes nothing and reports every mismatch instead.
+ * release tool bumps. Whether the two agree is an ESLint rule (`exadev/plugin-manifest`); what that rule does
+ * not read is the `package.json` itself, which the release tool names its tags after, so with `check` this only
+ * reports a `package.json` that has no version or is not named for its plugin directory, and writes nothing.
  */
 export function syncPluginVersions(root: string, check: boolean, only?: string): Problems {
   const problems = new Problems();
   const names = only === undefined ? listPluginNames(root) : [only];
+
   for (const name of names) {
     const dir = join(root, PLUGINS_DIR, name);
     const pkg = readJson(join(dir, 'package.json'), packageJsonSchema);
-    const manifestPath = join(dir, '.claude-plugin', 'plugin.json');
-    const manifest = readJson(manifestPath, pluginManifestSchema);
+
     if (pkg.version === undefined) {
       problems.add(`${PLUGINS_DIR}/${name}/package.json has no version`);
       continue;
     }
+
     if (pkg.name !== name) problems.add(`${PLUGINS_DIR}/${name}/package.json is named "${pkg.name}", not "${name}"`);
-    if (manifest.name !== name) problems.add(`${PLUGINS_DIR}/${name}/.claude-plugin/plugin.json is named "${manifest.name}", not "${name}"`);
+
+    if (check) continue;
+
+    const manifestPath = join(dir, '.claude-plugin', 'plugin.json');
+    const manifest = readJson(manifestPath, pluginManifestSchema);
+
     if (manifest.version === pkg.version) continue;
-    if (check) {
-      problems.add(`${PLUGINS_DIR}/${name}: package.json is ${pkg.version} but plugin.json is ${manifest.version ?? 'unset'}`);
-      continue;
-    }
+
     const text = readFileSync(manifestPath, 'utf8');
+
     if (!VERSION_MEMBER.test(text)) throw new Error(`${manifestPath} has no version member to update`);
+
     writeFileSync(manifestPath, text.replace(VERSION_MEMBER, `$1"${pkg.version}"`));
     console.log(`sync-plugin-version: ${name} plugin.json -> ${pkg.version}`);
   }
+
   return problems;
 }
 
