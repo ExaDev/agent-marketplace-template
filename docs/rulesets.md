@@ -82,7 +82,17 @@ One approving review is a starting point. If review is required, also decide whe
 
 Where neither a ruleset nor auto-merge is available, `.github/workflows/merge-when-green.yml` runs [`ExaDev/merge-when-green`](https://github.com/ExaDev/merge-when-green). A pull request labelled `automerge` is rebase merged once the `Required checks` job in `ci` has passed on its current head commit, it is not a draft and no review thread is unresolved. The job aggregates `validate` and, on pull requests, `commitlint`, so the workflow names one check and a new job is added to that job's `needs` list. `ci` has no path filter, which is what stops a required check from never reporting and leaving the pull request waiting.
 
-Labelling a pull request that is already green merges it at once, because the workflow also runs when the label is added or the pull request leaves draft. A push made after the check passed is never merged unseen, since the merge is pinned to the commit that was checked. Merging by hand still works, and a repository that has a ruleset and auto-merge can delete the workflow.
+### Who can authorise a merge
+
+The label is an authorisation to merge one commit, the head the person who applied it saw. Applying it runs the `authorise` job, which accepts the label only from someone with write access to the repository (triage is enough to apply a label but not to authorise a merge) on a pull request from a branch of this repository, and then records a `merge-when-green/authorised` commit status on that head commit. A pull request from a fork is never authorised, because its checks and its workflow files are the author's; merge it by hand after reading it. Before the action runs, the `merge` job refuses to continue for a labelled pull request whose head commit has no such status, and the action itself merges only the commit it checked (`gh pr merge --match-head-commit`).
+
+Anything that changes the head commit therefore invalidates the authorisation. The status belongs to a commit, so a commit pushed after the label has none, and the `revoke` job also removes the label on every push so the pull request shows that it needs authorising again. A maintainer applies the label again to the new head after reading it. Applying the label to a head that moved between the click and the job is refused for the same reason. The `Required checks` result is produced by the pull request's own workflow files, which is why a maintainer reads the diff, including anything under `.github/`, before labelling.
+
+None of these jobs checks out or runs pull request code, and every value taken from the event reaches a shell through an environment variable, which is what makes the `pull_request_target` trigger safe here. The workflow token's permissions are limited per job: write on commit statuses and pull requests for the `authorise` and `revoke` jobs, and write on contents, pull requests and actions for the `merge` job.
+
+### The merge and the secret
+
+Labelling a pull request that is already green and authorised merges it at once, because the workflow also runs when the label is added or the pull request leaves draft. Merging by hand still works, and a repository that has a ruleset and auto-merge can delete the workflow.
 
 The merge is made with the workflow token, which the job grants contents and pull requests write, so no secret is needed. GitHub does not start workflows from a push made with that token, so once a merge has happened the workflow dispatches `ci` on the default branch, which runs `validate`.
 <!-- content:claude:start -->
