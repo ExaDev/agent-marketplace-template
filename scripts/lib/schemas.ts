@@ -38,5 +38,6 @@ export type PackageJson = z.infer<typeof packageJsonSchema>;
 export function readJson<T>(path: string, schema: z.ZodType<T>): T {
   const parsed = schema.safeParse(JSON.parse(readFileSync(path, 'utf8')));
   if (!parsed.success) throw new Error(`${path}: ${z.prettifyError(parsed.error)}`);
+
   return parsed.data;
 }

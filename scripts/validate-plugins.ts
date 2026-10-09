@@ -11,7 +11,7 @@ import { runInherited } from './lib/run.ts';
 export function validatePlugins(root: string, claudeCommand: string): void {
   const [program, ...baseArgs] = claudeCommand.split(/\s+/).filter((part) => part !== '');
   if (program === undefined) throw new Error('CLAUDE_COMMAND is empty');
-  const validate = (target: string): void => runInherited(program, [...baseArgs, 'plugin', 'validate', target, '--strict'], root);
+  const validate = (target: string): void => { runInherited(program, [...baseArgs, 'plugin', 'validate', target, '--strict'], root); };
   validate('.');
   for (const name of listPluginNames(root)) validate(join(PLUGINS_DIR, name));
 }

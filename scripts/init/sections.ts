@@ -22,6 +22,7 @@ export function applySections(text: string, selected: ReadonlySet<ContentType>, 
     const lineNumber = index + 1;
     if (marker?.[1] === undefined || marker[2] === undefined) {
       if (open === undefined || selected.has(open)) kept.push(line);
+
       return;
     }
     if (!isContentType(marker[1])) throw new Error(`${file}:${String(lineNumber)}: unknown content type "${marker[1]}"`);
@@ -35,6 +36,7 @@ export function applySections(text: string, selected: ReadonlySet<ContentType>, 
     }
   });
   if (open !== undefined) throw new Error(`${file}:${String(openedAt)}: content:${open}:start is never closed`);
+
   return kept.join('\n');
 }
 

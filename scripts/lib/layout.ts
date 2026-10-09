@@ -26,6 +26,7 @@ export function detectLayout(root: string): Layout {
 /** Names of the immediate subdirectories of `dir`, sorted, or an empty list when `dir` does not exist. */
 export function listSubdirectories(dir: string): string[] {
   if (!existsSync(dir)) return [];
+
   return readdirSync(dir)
     .filter((entry) => statSync(join(dir, entry)).isDirectory())
     .sort();
@@ -42,5 +43,6 @@ export function listPluginNames(root: string): string[] {
  */
 export function contentScopes(root: string): string[] {
   const layout = detectLayout(root);
+
   return layout === 'marketplace' ? listPluginNames(root) : listSubdirectories(join(root, SKILLS_DIR));
 }

@@ -10,15 +10,16 @@ const RECORD_SEPARATOR = '\u0000';
 /** Checks every commit in `from..to` of the repository at `root`. */
 export function checkCiSkipTokens(root: string, from: string, to: string): Problems {
   const problems = new Problems();
-  const log = runCaptured('git', ['log', '--format=%H%n%B%x00', `${from}..${to}`], root);
+  const log = runCaptured('git', ['log', '--format=%h%n%B%x00', `${from}..${to}`], root);
   for (const record of log.split(RECORD_SEPARATOR)) {
     const trimmed = record.trim();
     if (trimmed === '') continue;
     const [sha, ...body] = trimmed.split('\n');
     for (const token of findSkipTokens(body.join('\n'))) {
-      problems.add(`commit ${sha?.slice(0, 12) ?? ''} contains "${token}", which would skip CI`);
+      problems.add(`commit ${sha ?? ''} contains "${token}", which would skip CI`);
     }
   }
+
   return problems;
 }
 

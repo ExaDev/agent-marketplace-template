@@ -5,7 +5,8 @@ import { dirname, join } from 'node:path';
 /** Creates an empty temporary directory and returns it with a function that deletes it. */
 export function makeTempDir(prefix: string): { dir: string; remove: () => void } {
   const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
-  return { dir, remove: () => rmSync(dir, { recursive: true, force: true }) };
+
+  return { dir, remove: () => { rmSync(dir, { recursive: true, force: true }); } };
 }
 
 /** Writes `files` (repository-relative path to content) under `root`, creating directories. Objects are written as JSON. */

@@ -49,7 +49,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
         'scripts/check-skills.ts',
         'scripts/check-skills.unit.test.ts',
         'scripts/check-ci-skip-tokens.ts',
-        'scripts/check-ci-skip-tokens.test.ts',
+        'scripts/check-ci-skip-tokens.integration.test.ts',
         'scripts/generate-readme-table.ts',
         'scripts/lib',
       ],
@@ -111,7 +111,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
   templatePaths: [
     'scripts/content.ts',
     'scripts/init.ts',
-    'scripts/init.test.ts',
+    'scripts/init.integration.test.ts',
     'scripts/init',
     '.github/workflows/template-selfcheck.yml',
   ],
@@ -145,6 +145,7 @@ export function parseContentList(raw: string): SelectableContent[] {
     else if (isSelectable(item)) chosen.add(item);
     else throw new Error(`unknown --content value "${item}"; valid values: ${valid}`);
   }
+
   return SELECTABLE_CONTENT.filter((type) => chosen.has(type));
 }
 
@@ -208,5 +209,6 @@ export function buildScripts(selected: ReadonlySet<ContentType>, includeTemplate
     const kept = definition.owner === 'template' ? includeTemplate : selected.has(definition.owner);
     if (kept) scripts[name] = definition.command(selected);
   }
+
   return scripts;
 }

@@ -21,8 +21,10 @@ export function reservedPluginNameReason(name: string): string | undefined {
     const next = words[index + 1];
     if (next === undefined) return false;
     const isCompanion = (candidate: string): boolean => OFFICIAL_COMPANIONS.some((companion) => companion === candidate);
+
     return (word === 'official' && isCompanion(next)) || (isCompanion(word) && next === 'official');
   });
   if (beside) return 'puts "official" beside "claude" or "anthropic"';
+
   return undefined;
 }

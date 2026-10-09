@@ -19,8 +19,10 @@ export function renderTable(root: string): string {
     const marketplace = readJson(join(root, MARKETPLACE_FILE), marketplaceSchema);
     const rows = marketplace.plugins.map((entry) => {
       const link = typeof entry.source === 'string' ? `[${entry.name}](${posix.normalize(entry.source)})` : entry.name;
+
       return `| ${link} | ${cell(entry.description ?? '')} | \`/plugin install ${entry.name}@${marketplace.name}\` |`;
     });
+
     return ['| Plugin | Description | Install |', '| --- | --- | --- |', ...rows].join('\n');
   }
   const rows = findSkillFiles(root)
@@ -28,8 +30,10 @@ export function renderTable(root: string): string {
     .map((path) => {
       const frontmatter = readSkillFrontmatter(join(root, path));
       if (frontmatter.name === undefined) throw new Error(`${path}: frontmatter has no name`);
+
       return `| [${frontmatter.name}](${path}) | ${cell(frontmatter.description ?? '')} |`;
     });
+
   return ['| Skill | Description |', '| --- | --- |', ...rows].join('\n');
 }
 
@@ -37,9 +41,10 @@ export function renderTable(root: string): string {
 export function replaceTable(readme: string, table: string): string {
   const start = readme.indexOf(TABLE_START);
   const end = readme.indexOf(TABLE_END);
-  if (start === -1 || end === -1 || end < start || readme.indexOf(TABLE_START, start + 1) !== -1 || readme.indexOf(TABLE_END, end + 1) !== -1) {
+  if (start === -1 || end === -1 || end < start || readme.includes(TABLE_START, start + 1) || readme.includes(TABLE_END, end + 1)) {
     throw new Error(`README.md must contain exactly one ${TABLE_START} followed by one ${TABLE_END}`);
   }
+
   return `${readme.slice(0, start + TABLE_START.length)}\n${table}\n${readme.slice(end)}`;
 }
 

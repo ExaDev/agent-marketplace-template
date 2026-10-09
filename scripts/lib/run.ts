@@ -14,5 +14,6 @@ export function runCaptured(command: string, args: readonly string[], cwd: strin
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(' ')} exited with ${String(result.status)} in ${cwd}\n${result.stderr}`);
   }
+
   return result.stdout;
 }

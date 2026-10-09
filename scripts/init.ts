@@ -67,11 +67,12 @@ export function isContact(value: string): boolean {
   if (EMAIL_PATTERN.test(value)) return true;
   if (/[\s`]/.test(value)) return false;
   const url = URL.parse(value);
+
   return url !== null && (url.protocol === 'http:' || url.protocol === 'https:');
 }
 
 /** The repository's own URL; the organisation is a GitHub organisation or user. */
-function repositoryUrl(options: Pick<InitOptions, 'org' | 'name'>): string {
+function repositoryUrl(options: Readonly<Pick<InitOptions, 'org' | 'name'>>): string {
   return `https://github.com/${options.org}/${options.name}`;
 }
 /** The generated repository's README, owned by the template and written over the template's own README.md. */
@@ -127,6 +128,7 @@ function replaceOwnCoordinates(text: string, options: InitOptions): string {
   const repository = `${options.org}/${options.name}`;
   let replaced = text.replaceAll(`${TEMPLATE_ORG}/${TEMPLATE_NAME}`, repository).replaceAll(TEMPLATE_NAME, options.name);
   for (const illustration of OWN_REPOSITORY_ILLUSTRATIONS) replaced = replaced.replaceAll(illustration, repository);
+
   return replaced
     .replaceAll(OWN_MARKETPLACE_ILLUSTRATION, options.marketplaceName)
     .replaceAll(SECURITY_CONTACT_TOKEN, options.contact)
@@ -143,9 +145,11 @@ function renderReadme(template: string, options: InitOptions, hasClaude: boolean
     skillsPath: hasClaude ? 'plugins/<name>/skills/<skill>/SKILL.md' : 'skills/<skill>/SKILL.md',
     licence: options.licence === 'MIT' ? 'MIT, see [LICENSE](LICENSE).' : 'Proprietary, see [LICENSE](LICENSE).',
   };
+
   return template.replace(/\{\{([A-Za-z]+)\}\}/g, (_match, key: string) => {
     const value = values[key];
     if (value === undefined) throw new Error(`${README_TEMPLATE}: unknown placeholder {{${key}}}`);
+
     return value;
   });
 }
@@ -233,6 +237,7 @@ function writeLicence(dir: string, options: InitOptions): void {
       path,
       `Copyright (c) ${String(options.year)} ${options.owner}. All rights reserved.\n\nThis repository and its contents are proprietary. No licence is granted to use, copy, modify or distribute them without the written permission of the copyright holder.\n`,
     );
+
     return;
   }
   const text = readFileSync(path, 'utf8');
@@ -299,6 +304,7 @@ async function main(): Promise<void> {
   });
   if (values.help) {
     console.log(USAGE);
+
     return;
   }
   const dir = resolve(values.dir);
@@ -325,6 +331,7 @@ async function main(): Promise<void> {
 function parseChoice<T extends string>(value: string, valid: readonly T[], flag: string): T {
   const match = valid.find((candidate) => candidate === value);
   if (match === undefined) throw new Error(`${flag} must be one of ${valid.join(', ')}, not "${value}"`);
+
   return match;
 }
 
@@ -334,6 +341,7 @@ async function ask(question: string, nonInteractive: boolean, flag: string): Pro
   try {
     const answer = (await readline.question(`${question}: `)).trim();
     if (answer === '') throw new Error(`${flag} cannot be empty`);
+
     return answer;
   } finally {
     readline.close();

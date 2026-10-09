@@ -39,7 +39,7 @@ export const RELEASE_TOOL_COMMIT = /^chore\((?:release|deps)\):/;
  */
 export const FIXED_SCOPES: readonly string[] = ['deps', 'release', 'ci', 'docs', 'repo'];
 
-/** Release rules for @semantic-release/commit-analyzer: breaking changes are major, then each type's own impact. */
+/** Release rules for `@semantic-release/commit-analyzer`: breaking changes are major, then each type's own impact. */
 export const RELEASE_RULES: readonly { breaking?: true; type?: string; release: 'major' | ReleaseImpact }[] = [
   { breaking: true, release: 'major' },
   ...COMMIT_TYPES.map(({ type, release }) => ({ type, release })),
