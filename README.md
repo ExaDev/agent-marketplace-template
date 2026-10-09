@@ -84,20 +84,24 @@ To install the skills with the `skills` CLI instead, run `npx skills add <owner>
 .claude-plugin/marketplace.json   the catalogue, one entry per plugin
 plugins/<name>/                   one pnpm workspace package per plugin
 scripts/                          init, version sync, checks, README table
+eslint.config.ts                  the shared ESLint config, applied to this repository itself
 .github/workflows/                ci, ci-skip-guard, template-selfcheck
 docs/                             authoring, distribution, releasing and the rest
 ```
 
-Each plugin is a private pnpm workspace package. Its `package.json` carries the version, the release tool bumps it, and a release step copies it into the plugin's `.claude-plugin/plugin.json`. Marketplace entries carry no `version`, because Claude Code ignores the entry's value when `plugin.json` sets one and `claude plugin validate` warns about the pair.
+Each plugin is a private pnpm workspace package. Its `package.json` carries the version, the release tool bumps it, and a release step copies it into the plugin's `.claude-plugin/plugin.json`. Marketplace entries carry no `version`, because Claude Code ignores the entry's value when `plugin.json` sets one and `claude plugin validate` warns about the pair. The `agentSkills` rules of the shared ESLint config enforce this and the other structural conventions: skill names equal their directory and are unique, entries and manifests agree with the plugin directories, and `plugin.json` carries the version in `package.json`.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm run validate` | Everything CI runs on a pull request apart from commit linting |
+| `pnpm run validate` | Everything CI runs on a pull request apart from commit linting: type-check, lint, the tests, the skills and version checks, the README table and plugin validation |
 | `pnpm run typecheck` | Type-check the scripts |
-| `pnpm run check:skills` | No `skills` key anywhere, unique skill names, one listing per tool, no plugin name Claude Code reserves |
-| `pnpm run check:versions` | Each plugin's `package.json` and `plugin.json` versions agree and no entry sets one |
+| `pnpm run lint` | Lint the scripts, JSON, Markdown, every `SKILL.md` and the marketplace and plugin manifests with the shared ESLint config |
+| `pnpm run lint:fix` | The same, applying the fixes, including the canonical layout of the JSON files |
+| `pnpm run test` | Run the tests of the scripts (part of `validate`) |
+| `pnpm run check:skills` | Every `SKILL.md` sits where the `skills` CLI finds it, one listing per tool, no plugin name Claude Code reserves |
+| `pnpm run check:versions` | Each plugin's `package.json` carries a version and is named for its directory |
 | `pnpm run check:readme` | The plugin table is up to date |
 | `pnpm run check:ci-skip` | No CI skip tokens in commit messages |
 | `pnpm run lint:commits` | Lint commit messages |

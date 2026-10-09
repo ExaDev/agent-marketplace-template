@@ -17,11 +17,11 @@ The CLI searches the repository root and `skills/` directories, and it also read
 Two consequences shape the repository:
 
 - Entries use `"source": "./plugins/<name>"`. The CLI skips entries whose `source` does not start with `./`, so bare names resolved through `metadata.pluginRoot` would be invisible to it, and `pluginRoot` is not used here.
-- Skills must have unique `name` values across the whole repository. A duplicate is silently dropped by the CLI, which `pnpm run check:skills` turns into a failure.
+- Skills must have unique `name` values across the whole repository. A duplicate is silently dropped by the CLI, which the `exadev/skill-name-unique` rule behind `pnpm run lint` turns into a failure.
 
 ## Why a skill is never declared twice
 
-Claude Code scans a plugin's `skills/` directory by default. A `skills` key in `plugin.json` adds more directories to that scan and, as far as Claude Code's documentation says, nothing about removing duplicates of the same path. The `skills` CLI needs no key at all. So the layout that cannot list a skill twice is one with no declarations: one `SKILL.md` per skill, in the default location, and no `skills` key in any `plugin.json` or marketplace entry. `pnpm run check:skills` fails the build if a `skills` key appears, if two skills share a name, or if a skill would be listed more than once by either tool.
+Claude Code scans a plugin's `skills/` directory by default. A `skills` key in `plugin.json` adds more directories to that scan and, as far as Claude Code's documentation says, nothing about removing duplicates of the same path. The `skills` CLI needs no key at all. So the layout that cannot list a skill twice is one with no declarations: one `SKILL.md` per skill, in the default location, and no `skills` key in any `plugin.json` or marketplace entry. `pnpm run lint` fails the build if a `skills` key appears or if two skills share a name, and `pnpm run check:skills` fails it if a skill sits where the `skills` CLI cannot find it or would be listed more than once by it.
 
 Do not copy a skill into a second directory or symlink it. Copies drift, and symlinks break for contributors on Windows and in synced folders.
 

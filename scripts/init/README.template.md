@@ -43,10 +43,12 @@ To install the skills with the `skills` CLI, run `npx skills add {{repository}}`
 | --- | --- |
 | `pnpm run validate` | Everything CI runs on a pull request apart from commit linting |
 | `pnpm run typecheck` | Type-check the scripts |
+| `pnpm run lint` | Lint the scripts, JSON, Markdown and every `SKILL.md` with the shared ESLint config |
+| `pnpm run lint:fix` | The same, applying the fixes |
 | `pnpm run test` | Run the script tests |
-| `pnpm run check:skills` | Skill front matter and unique skill names |
+| `pnpm run check:skills` | Every skill sits where the `skills` CLI finds it |
 <!-- content:claude:start -->
-| `pnpm run check:versions` | Each plugin's `package.json` and `plugin.json` versions agree |
+| `pnpm run check:versions` | Each plugin's `package.json` carries a version and is named for its directory |
 <!-- content:claude:end -->
 | `pnpm run check:readme` | The table above is up to date |
 | `pnpm run readme` | Regenerate the table above |
