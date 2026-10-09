@@ -3,6 +3,8 @@ import { cpSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs
 import { dirname, join, relative } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'yaml';
+import { z } from 'zod';
 import {
   buildScripts,
   CONTENT_MANIFEST,
@@ -65,6 +67,48 @@ function listFiles(root: string): Map<string, string> {
   return files;
 }
 
+const ciWorkflowSchema = z.looseObject({
+  name: z.string(),
+  jobs: z.record(z.string(), z.looseObject({ name: z.string().optional(), needs: z.union([z.string(), z.array(z.string())]).optional() })),
+});
+
+const mergeWorkflowSchema = z.looseObject({
+  on: z.looseObject({ workflow_run: z.looseObject({ workflows: z.array(z.string()) }) }),
+  jobs: z.looseObject({
+    merge: z.looseObject({
+      steps: z.array(z.looseObject({ with: z.looseObject({ 'merge-method': z.string(), 'required-check': z.string() }) })),
+    }),
+  }),
+});
+
+/**
+ * The merge-when-green workflow is core content, so every content set keeps it. It must wait for a job that
+ * ci really defines, aggregating `validate`, and run when that ci workflow completes.
+ */
+function assertMergeWorkflow(root: string): void {
+  const ci = ciWorkflowSchema.parse(parse(readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8')));
+  const mergeText = readFileSync(join(root, '.github/workflows/merge-when-green.yml'), 'utf8');
+  const merge = mergeWorkflowSchema.parse(parse(mergeText));
+  assert.deepEqual(merge.on.workflow_run.workflows, [ci.name], 'the merge workflow runs when ci completes');
+  const step = merge.jobs.merge.steps.find((candidate) => candidate.with['required-check'] !== '');
+  assert.ok(step, 'the merge step names a required check');
+  const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === step.with['required-check']);
+  assert.equal(aggregates.length, 1, 'the required check is exactly one job of ci');
+  assert.ok([aggregates[0]?.[1].needs ?? []].flat().includes('validate'), 'the required check aggregates validate');
+  assert.equal(step.with['merge-method'], 'rebase', 'pull requests are rebase merged');
+  assert.match(mergeText, /uses: ExaDev\/merge-when-green@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/, 'the action is pinned by commit with a version comment');
+  assert.ok(mergeText.includes('!github.event.repository.is_template'), 'a repository marked as a template never runs the merge job');
+}
+
+/** The ruleset page explains the merge secret for every content set, and the release job's part in it only where there is a release job. */
+function assertMergeDocs(root: string, claude: boolean): void {
+  const rulesets = readFileSync(join(root, 'docs/rulesets.md'), 'utf8');
+  assert.ok(rulesets.includes('## Merging a labelled pull request'), 'the merge flow is documented');
+  assert.ok(rulesets.includes('`MERGE_TOKEN`'), 'the merge secret is named');
+  assert.equal(rulesets.includes('The `release` job is one of the workflows that must start on the merge'), claude, 'the release job paragraph belongs to the claude content type only');
+  assert.ok(readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8').includes('docs/rulesets.md#merging-a-labelled-pull-request'), 'CONTRIBUTING.md points at the merge flow');
+}
+
 /**
  * Independent oracle for a generated repository: hard-coded expectations, deliberately not derived from the
  * manifest, so a broken manifest rule makes it throw.
@@ -87,6 +131,9 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
   assert.equal(/^ {2}release:$/m.test(ci), claude, 'the release job belongs to the claude content type only');
   assert.equal(ci.includes('content:'), false, 'no content marker may survive init');
+  expectPresent('.github/workflows/merge-when-green.yml', true);
+  assertMergeWorkflow(root);
+  assertMergeDocs(root, claude);
   for (const path of ['skills/word-count/SKILL.md', 'skills/house-style/SKILL.md', 'shared/style-guide.md']) expectPresent(path, !claude);
   expectPresent('docs/skills-cli.md', skills);
 
