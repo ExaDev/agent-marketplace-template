@@ -20,7 +20,7 @@ import { findBrokenRelativeLinks } from './init/links.ts';
 import { applySections } from './init/sections.ts';
 import { listPluginNames, MARKETPLACE_FILE, PLUGINS_DIR, SKILLS_DIR } from './lib/layout.ts';
 import { runInherited } from './lib/run.ts';
-import { marketplaceSchema, packageJsonSchema, pluginManifestSchema, readJson } from './lib/schemas.ts';
+import { marketplaceSchema, packageJsonSchema, pluginManifestSchema, readJson, readJsonMembers } from './lib/schemas.ts';
 
 /** The values the template carries, replaced in the generated repository. */
 export const TEMPLATE_NAME = 'agent-marketplace-template';
@@ -71,10 +71,6 @@ export function isContact(value: string): boolean {
   return url !== null && (url.protocol === 'http:' || url.protocol === 'https:');
 }
 
-/** The repository's own URL; the organisation is a GitHub organisation or user. */
-function repositoryUrl(options: Readonly<Pick<InitOptions, 'org' | 'name'>>): string {
-  return `https://github.com/${options.org}/${options.name}`;
-}
 /** The generated repository's README, owned by the template and written over the template's own README.md. */
 const README_TEMPLATE = join('scripts', 'init', 'README.template.md');
 /** Written as the marketplace description in place of the template's, which describes the template. */
@@ -195,9 +191,8 @@ function writePackageJson(dir: string, options: InitOptions, manifest: ContentMa
   const selected = selectedTypes(options.content);
   const dropped = new Set(CONTENT_TYPES.filter((type) => !selected.has(type)).flatMap((type) => manifest.modules[type].devDependencies));
   const devDependencies = Object.fromEntries(Object.entries(pkg.devDependencies ?? {}).filter(([name]) => !dropped.has(name)));
-  const url = repositoryUrl(options);
-  const links = { repository: { type: 'git', url: `git+${url}.git` }, bugs: { url: `${url}/issues` }, homepage: `${url}#readme` };
-  writeJson(path, { ...pkg, name: options.name, ...links, scripts: buildScripts(selected, false), devDependencies });
+  // package.json keeps the field order `exadev/package-json-key-order` requires, which is not the code-unit order `writeJson` gives, so its members are rewritten where they stand.
+  writeFileSync(path, `${JSON.stringify({ ...readJsonMembers(path), name: options.name, scripts: buildScripts(selected, false), devDependencies }, null, 2)}\n`);
 }
 
 function writeWorkspaceYaml(dir: string, selected: ReturnType<typeof selectedTypes>, manifest: ContentManifest): void {
@@ -225,8 +220,7 @@ function writePluginMetadata(dir: string, options: InitOptions): void {
     const manifest = readJson(path, pluginManifestSchema);
     const author = manifest.author === undefined ? {} : { author: { ...manifest.author, name: options.owner } };
     const license = options.licence === 'MIT' ? {} : { license: UNLICENSED };
-    const url = repositoryUrl(options);
-    writeJson(path, { ...manifest, ...author, homepage: url, repository: url, ...license });
+    writeJson(path, { ...manifest, ...author, ...license });
   }
 }
 
@@ -246,8 +240,21 @@ function writeLicence(dir: string, options: InitOptions): void {
   writeFileSync(path, updated);
 }
 
+/** Writes `value` in the layout the lint config requires of JSON files: two-space indentation and every object's keys in code-unit order. */
 function writeJson(path: string, value: unknown): void {
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+  writeFileSync(path, `${JSON.stringify(sortKeys(value), null, 2)}\n`);
+}
+
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeys);
+
+  if (typeof value !== 'object' || value === null) return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, member]) => [key, sortKeys(member)]),
+  );
 }
 
 /** Visits every regular text file outside node_modules and .git. Symbolic links are left alone (they point at files visited in their own right) and a file containing a NUL byte is binary and skipped. */

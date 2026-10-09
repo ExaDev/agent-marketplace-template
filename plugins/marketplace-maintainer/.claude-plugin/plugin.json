@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "marketplace-maintainer",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

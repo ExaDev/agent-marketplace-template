@@ -13,7 +13,9 @@
     }
   ],
   "description": "Minimal example of a bundle: a plugin with no components that installs other plugins as dependencies.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-bundle",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

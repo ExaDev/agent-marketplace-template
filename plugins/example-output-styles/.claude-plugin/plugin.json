@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of a plugin-provided output style.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-output-styles",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

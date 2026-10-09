@@ -16,7 +16,7 @@ import {
 import { applyInit, isContact, TEMPLATE_NAME, type InitOptions } from './init.ts';
 import { makeTempDir } from './lib/fixture.ts';
 import { runInherited } from './lib/run.ts';
-import { packageJsonSchema, readJson } from './lib/schemas.ts';
+import { packageJsonSchema, readJson, readJsonMembers } from './lib/schemas.ts';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SKIPPED = new Set(['node_modules', '.git']);
@@ -36,6 +36,18 @@ function copyOfTemplate(): string {
 
 function options(dir: string, content: readonly SelectableContent[], overrides: Partial<InitOptions> = {}): InitOptions {
   return { dir, name: 'acme-marketplace', marketplaceName: 'acme-marketplace', owner: 'Acme Ltd', org: 'acme-org', contact: 'security@acme.example', content, licence: 'MIT', examples: 'keep', year: 2031, ...overrides };
+}
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+
+  if (typeof value !== 'object' || value === null) return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([key, member]) => [key, sortKeysDeep(member)]),
+  );
 }
 
 function listFiles(root: string): Map<string, string> {
@@ -64,11 +76,12 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
 
   expectPresent('commitlint.config.ts', true);
   expectPresent('commit-types.ts', true);
+  expectPresent('eslint.config.ts', true);
   expectPresent('scripts/check-skills.ts', true);
   expectPresent('LICENSE', true);
   for (const path of ['scripts/init.ts', 'scripts/content.ts', 'scripts/init.integration.test.ts', 'scripts/init', '.github/workflows/template-selfcheck.yml']) expectPresent(path, false);
 
-  for (const path of ['.claude-plugin/marketplace.json', 'plugins', 'plugins/example-skills/skills/word-count/SKILL.md', 'release-workspace.config.ts', 'scripts/sync-plugin-version.ts', 'scripts/validate-plugins.ts', 'docs/releasing.md']) {
+  for (const path of ['.claude-plugin/marketplace.json', 'plugins', 'plugins/example-skills/skills/word-count/SKILL.md', 'release-workspace.config.ts', 'workflow-globals.d.ts', 'scripts/sync-plugin-version.ts', 'scripts/validate-plugins.ts', 'docs/releasing.md']) {
     expectPresent(path, claude);
   }
   const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
@@ -83,11 +96,15 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   assert.equal('check:versions' in scripts, claude, 'check:versions script');
   assert.equal('validate:plugins' in scripts, claude, 'validate:plugins script');
   assert.equal('init' in scripts, false, 'init script');
+  assert.ok('lint' in scripts, 'lint script');
+  assert.equal(scripts.validate?.includes('pnpm run lint'), true, 'validate runs lint');
   assert.equal(scripts['check:skills']?.includes('--with-cli'), skills, 'check:skills listing check');
   assert.equal(scripts.validate?.includes('validate:plugins'), claude, 'validate runs plugin validation');
   const devDependencies = pkg.devDependencies ?? {};
   assert.equal('semantic-release' in devDependencies, claude, 'semantic-release dependency');
   assert.equal('skills' in devDependencies, skills, 'skills dependency');
+  assert.ok('@exadev/eslint-config' in devDependencies, 'lint config dependency');
+  assert.equal('globals' in devDependencies, claude, 'globals dependency');
   assert.equal(pkg.name, 'acme-marketplace');
   assertReadme(root, content, marketplaceName);
   if (claude) assertMarketplaceFile(root, marketplaceName);
@@ -265,6 +282,23 @@ void describe('applyInit', () => {
     assert.ok(typeof manifest === 'object' && manifest !== null);
     assert.equal('repository' in manifest && manifest.repository, url);
     assert.equal('homepage' in manifest && manifest.homepage, url);
+  });
+
+  void it('writes JSON in the layout the lint config requires', () => {
+    const dir = copyOfTemplate();
+
+    applyInit(options(dir, ['claude'], { licence: 'proprietary', examples: 'none' }));
+    const files = ['.claude-plugin/marketplace.json', ...readdirSync(join(dir, 'plugins')).map((name) => `plugins/${name}/.claude-plugin/plugin.json`)];
+
+    for (const file of files) {
+      const text = readFileSync(join(dir, file), 'utf8');
+
+      assert.equal(text, `${JSON.stringify(sortKeysDeep(JSON.parse(text)), null, 2)}\n`, `${file} is not in canonical layout`);
+    }
+
+    const template = Object.keys(readJsonMembers(join(REPO_ROOT, 'package.json')));
+
+    assert.deepEqual(Object.keys(readJsonMembers(join(dir, 'package.json'))), template, 'package.json keeps its field order');
   });
 
   void it('rejects a contact that is neither an email address nor an http(s) URL', () => {

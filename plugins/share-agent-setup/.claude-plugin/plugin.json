@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "UNLICENSED",
   "name": "share-agent-setup",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.0.0"
 }

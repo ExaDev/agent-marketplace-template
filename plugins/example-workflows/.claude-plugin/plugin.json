@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of a plugin dynamic workflow.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-workflows",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }
