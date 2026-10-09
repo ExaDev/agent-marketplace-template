@@ -1,0 +1,7 @@
+{
+  "name": "share-agent-setup",
+  "version": "0.0.0",
+  "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt.",
+  "author": { "name": "ExaDev" },
+  "license": "UNLICENSED"
+}

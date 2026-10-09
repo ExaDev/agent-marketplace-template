@@ -61,6 +61,7 @@ The template carries every file. A manifest in `scripts/content.ts` records whic
 | [example-themes](plugins/example-themes) | Minimal example of a plugin colour theme. | `/plugin install example-themes@agent-marketplace-template` |
 | [example-workflows](plugins/example-workflows) | Minimal example of a plugin dynamic workflow. | `/plugin install example-workflows@agent-marketplace-template` |
 | [marketplace-maintainer](plugins/marketplace-maintainer) | Skills that add, validate and remove plugins in a plugin marketplace checkout. | `/plugin install marketplace-maintainer@agent-marketplace-template` |
+| [share-agent-setup](plugins/share-agent-setup) | Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt. | `/plugin install share-agent-setup@agent-marketplace-template` |
 <!-- plugins:end -->
 
 The table between the markers is generated from `.claude-plugin/marketplace.json` by `pnpm run readme`, and `pnpm run check:readme` fails when it is stale. Edit the marketplace file, not the table.

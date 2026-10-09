@@ -285,10 +285,11 @@ describe('applyInit', () => {
   it('removes example plugins and their entries with --examples none', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['claude'], { examples: 'none' }));
-    assert.deepEqual(readdirSync(join(dir, 'plugins')), ['marketplace-maintainer']);
+    assert.deepEqual(readdirSync(join(dir, 'plugins')).sort(), ['marketplace-maintainer', 'share-agent-setup']);
     const marketplace = readFileSync(join(dir, '.claude-plugin/marketplace.json'), 'utf8');
     assert.ok(!marketplace.includes('example-'));
     assert.match(marketplace, /marketplace-maintainer/);
+    assert.match(marketplace, /share-agent-setup/);
   });
 
   it('writes one starter skill for a skills-only repository with --examples none', () => {
