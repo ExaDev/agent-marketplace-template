@@ -16,12 +16,13 @@ Used when `--direct` is given. It produces one self-contained prompt that a reci
    - Test it before finishing: a harmless dry run, showing the exact action the first time and asking before a real one, and a request to report what could not be verified.
 3. Write the file to a task-named directory under the session scratchpad (never a generic name, which another agent may overwrite) as `<slug>-setup-prompt.md`: a title, a line saying where to paste it, the prompt inside a four-backtick fence so triple-backtick blocks survive, and a short notes section for the person setting it up.
 4. Run `${CLAUDE_SKILL_DIR}/scripts/leak-check.sh <file>` and fix every hit until it exits 0, then read the file once more for client, private repository and person names.
-5. Unless `--no-gist`, run `${CLAUDE_SKILL_DIR}/scripts/share-gist.sh <file> <slug>`. The slug names the use case (the piece's own name, or the sorted names joined with `+`), so a re-run updates the gist it made before. The script refuses when the leak check finds anything. It needs `gh` logged in with the gist scope.
+5. Unless `--no-gist`, run `${CLAUDE_SKILL_DIR}/scripts/share-gist.sh <file> <slug>`. The slug names the use case (the piece's own name, or the sorted names joined with `+`), so a re-run updates the gist it made before. The script refuses when the leak check finds anything or the slug has characters other than letters, digits and `. _ + -`. It needs `gh` logged in with the gist scope.
 6. Report the gist link first, what the prompt covers, what was left out on purpose, and that a prompt never followed on a clean setup is untested from the recipient's side. Passing the link to the recipient is the user's step.
 
 ## Gotchas
 
 - The gist is secret, not private: anyone holding the link can read it. Never pass `--public`, and never edit another account's gist.
+- After creating one, confirm it is secret with `gh api gists/<id> --jq .public`, which must print `false`. To take a gist down, `gh gist delete <id> --yes`: without `--yes` the command refuses to run outside a terminal.
 - `gh gist create` has no `--secret` flag (secret is its default), and `--filename` only names a file read from stdin, which is why `share-gist.sh` pipes the file in.
 - Describing a feature the recipient may not have without a check makes their Claude invent a workaround. Put the check first.
 - Verified mechanics only: leave out a step that was never run, or mark it untried.
