@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of the command component type: one flat slash command that takes arguments.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-commands",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

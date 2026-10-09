@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of plugin hooks: a PreToolUse Bash guard and an opt-in, hash-tracked SessionStart installer.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-hooks",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

@@ -6,7 +6,9 @@
   "experimental": {
     "monitors": "./monitors/monitors.json"
   },
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-monitors",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

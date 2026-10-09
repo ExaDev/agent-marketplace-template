@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of the skill component type: two skills, one with a reference file and a script, one that reads a shared file.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-skills",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

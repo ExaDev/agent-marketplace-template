@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of a plugin-provided language server configuration for TypeScript and JavaScript.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-lsp",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

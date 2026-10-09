@@ -3,7 +3,9 @@
     "name": "ExaDev"
   },
   "description": "Minimal example of a plugin-provided MCP server: a dependency-free stdio server with one tool.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
   "license": "MIT",
   "name": "example-mcp",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
   "version": "0.1.0"
 }

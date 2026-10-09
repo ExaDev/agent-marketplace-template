@@ -41,3 +41,12 @@ export function readJson<T>(path: string, schema: z.ZodType<T>): T {
 
   return parsed.data;
 }
+
+/** The members of a JSON object file in the order the file lists them, where `readJson` returns them in the schema's order. Throws when the file is not a JSON object. */
+export function readJsonMembers(path: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error(`${path}: expected a JSON object`);
+
+  return Object.fromEntries(Object.entries(parsed));
+}

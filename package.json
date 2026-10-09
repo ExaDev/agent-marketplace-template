@@ -1,6 +1,9 @@
 {
   "name": "agent-marketplace-template",
   "version": "0.0.0",
+  "bugs": {
+    "url": "https://github.com/ExaDev/agent-marketplace-template/issues"
+  },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
@@ -35,8 +38,13 @@
   "engines": {
     "node": ">=24"
   },
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template#readme",
   "packageManager": "pnpm@12.8.1",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ExaDev/agent-marketplace-template.git"
+  },
   "scripts": {
     "check:ci-skip": "tsx scripts/check-ci-skip-tokens.ts",
     "check:readme": "tsx scripts/generate-readme-table.ts --check",
