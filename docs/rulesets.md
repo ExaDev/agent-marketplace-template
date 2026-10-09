@@ -4,7 +4,7 @@ This repository ships no ruleset and no secrets, because both are settings on a 
 
 ## Availability
 
-Rulesets are available on public repositories and on private repositories on a paid plan. On a private repository on the Free plan the API refuses with "Upgrade to GitHub Pro or make this repository public", and organisation-level rulesets need GitHub Team or Enterprise. Without a ruleset the checks below still run on every pull request but nothing forces them, and the release job simply pushes to `main` with its token and needs no bypass. Enforcement is then a team habit, not a control.
+Rulesets are available on public repositories and on private repositories on a paid plan. On a private repository on the Free plan the API refuses with "Upgrade to GitHub Pro or make this repository public", and organisation-level rulesets need GitHub Team or Enterprise. Without a ruleset the checks below still run on every pull request but nothing forces them, and the release job simply pushes to `main` with its token and needs no bypass. Enforcement is then a team habit, not a control. [Merging a labelled pull request](#merging-a-labelled-pull-request) saves the manual merge there.
 
 ## What it enforces
 
@@ -77,3 +77,15 @@ Keep the bypass narrow. Humans are not bypass actors, and a bypass actor should 
 ## Review settings to decide
 
 One approving review is a starting point. If review is required, also decide whether a bot approval should count and whether `require_code_owner_review` applies, and note that automated reviewers comment again on every push. `required_review_thread_resolution` makes unresolved review threads block the merge.
+
+## Merging a labelled pull request
+
+Where neither a ruleset nor auto-merge is available, `.github/workflows/merge-when-green.yml` runs [`ExaDev/merge-when-green`](https://github.com/ExaDev/merge-when-green). A pull request labelled `automerge` is rebase merged once the `Required checks` job in `ci` has passed on its current head commit, it is not a draft and no review thread is unresolved. The job aggregates `validate` and, on pull requests, `commitlint`, so the workflow names one check and a new job is added to that job's `needs` list. `ci` has no path filter, which is what stops a required check from never reporting and leaving the pull request waiting.
+
+Labelling a pull request that is already green merges it at once, because the workflow also runs when the label is added or the pull request leaves draft. A push made after the check passed is never merged unseen, since the merge is pinned to the commit that was checked. Merging by hand still works, and a repository that has a ruleset and auto-merge can delete the workflow.
+
+The merge is made with the `MERGE_TOKEN` repository secret, not the workflow token, because a push made with the workflow token does not start the workflows that run on `main`. A fine-grained personal access token or a GitHub App installation token with contents and pull requests write is enough. Without the secret the workflow run fails instead of merging. Create the `automerge` label in the repository before using it.
+<!-- content:claude:start -->
+
+The `release` job is one of the workflows that must start on the merge, so there is no fallback to the workflow token. The token can hold the same value as `RELEASE_TOKEN` ([releasing.md](releasing.md)).
+<!-- content:claude:end -->

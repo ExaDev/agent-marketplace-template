@@ -22,7 +22,7 @@ The steps below are the whole loop. Run them in order and the vocabulary will st
 5. Stage files by name and commit (see below).
 6. Push the branch and open a pull request. `gh pr create --draft` opens it as a draft, which is right while CI is still running.
 7. When CI is green and you are done, mark it ready for review. Answer every review comment, either with a fix or a reply.
-8. Once approved, the pull request is merged with a rebase merge. Your commits land on `main` one by one, unchanged apart from being re-applied.
+8. Once approved, the pull request is merged with a rebase merge. Your commits land on `main` one by one, unchanged apart from being re-applied. Add the `automerge` label to have the `merge-when-green` workflow do it for you as soon as the `Required checks` job has passed, the pull request is not a draft and every review thread is resolved ([docs/rulesets.md](docs/rulesets.md#merging-a-labelled-pull-request)).
 
 ## Using Claude Code to make the change
 

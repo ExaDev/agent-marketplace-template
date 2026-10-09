@@ -85,7 +85,7 @@ To install the skills with the `skills` CLI instead, run `npx skills add <owner>
 plugins/<name>/                   one pnpm workspace package per plugin
 scripts/                          init, version sync, checks, README table
 eslint.config.ts                  the shared ESLint config, applied to this repository itself
-.github/workflows/                ci, ci-skip-guard, template-selfcheck
+.github/workflows/                ci, ci-skip-guard, merge-when-green, template-selfcheck
 docs/                             authoring, distribution, releasing and the rest
 ```
 

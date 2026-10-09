@@ -34,7 +34,7 @@ To install the skills with the `skills` CLI, run `npx skills add {{repository}}`
 <!-- content:claude:end -->
 - `{{skillsPath}}`: one directory per skill
 - `scripts/`: checks and the README table
-- `.github/workflows/`: CI
+- `.github/workflows/`: CI and the merge-when-green workflow
 - `docs/`: contributor documentation
 
 ## Commands
