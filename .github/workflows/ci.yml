@@ -53,6 +53,24 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
 
+  # The one check merge-when-green waits for, so the merge workflow names a single job and adding a check here means adding it to this list. if: always() keeps it running, and failing, when a dependency failed. commitlint only runs on pull requests, so it is skipped on a push to main.
+  required-checks:
+    name: Required checks
+    needs: [validate, commitlint]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job passed
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VALIDATE: ${{ needs.validate.result }}
+          COMMITLINT: ${{ needs.commitlint.result }}
+        run: |
+          [ "$VALIDATE" = success ]
+          if [ "$EVENT_NAME" = pull_request ]; then
+            [ "$COMMITLINT" = success ]
+          fi
+
 # content:claude:start
   release:
     # A repository marked as a GitHub template has no releases to cut, so the job is skipped there.
