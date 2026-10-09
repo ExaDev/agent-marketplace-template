@@ -1,0 +1,36 @@
+name: merge-when-green
+
+# For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
+#
+# The merge is made with MERGE_TOKEN rather than the workflow token, because GitHub does not start workflows from a push made with the workflow token, and the push to main is what runs ci's jobs for the merged commits. There is deliberately no fallback to the workflow token: a merge that silently skipped those jobs would be worse than a failed run. The workflow checks out nothing and runs no pull request code, which is what makes the pull_request_target trigger safe.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  pull_request_target:
+    types: [labeled, ready_for_review]
+
+concurrency:
+  group: merge-when-green-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  merge:
+    # A repository marked as a GitHub template has no merge token and can use GitHub's own auto-merge, so the job is skipped there.
+    if: >-
+      !github.event.repository.is_template
+      && ((github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+      || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'automerge')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: ExaDev/merge-when-green@46340dbd98a45c3cdf14737a53c24845b2ea951d # v1.6.3
+        with:
+          merge-method: rebase
+          merge-token: ${{ secrets.MERGE_TOKEN }}
+          required-check: Required checks
