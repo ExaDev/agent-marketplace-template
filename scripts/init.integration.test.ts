@@ -97,9 +97,9 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   assert.equal('validate:plugins' in scripts, claude, 'validate:plugins script');
   assert.equal('init' in scripts, false, 'init script');
   assert.ok('lint' in scripts, 'lint script');
-  assert.equal(scripts.validate?.includes('pnpm run lint'), true, 'validate runs lint');
   assert.equal(scripts['check:skills']?.includes('--with-cli'), skills, 'check:skills listing check');
   assert.equal(scripts.validate?.includes('validate:plugins'), claude, 'validate runs plugin validation');
+  assert.ok(scripts.validate.includes('pnpm run lint'), 'validate runs lint');
   const devDependencies = pkg.devDependencies ?? {};
   assert.equal('semantic-release' in devDependencies, claude, 'semantic-release dependency');
   assert.equal('skills' in devDependencies, skills, 'skills dependency');
