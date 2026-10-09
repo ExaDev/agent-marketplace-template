@@ -2,7 +2,8 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# The merge is made with MERGE_TOKEN rather than the workflow token, because GitHub does not start workflows from a push made with the workflow token, and the push to main is what runs ci's jobs for the merged commits. There is deliberately no fallback to the workflow token: a merge that silently skipped those jobs would be worse than a failed run. The workflow checks out nothing and runs no pull request code, which is what makes the pull_request_target trigger safe.
+# The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead. The workflow checks out nothing and runs no pull request code, which is what makes the pull_request_target trigger safe.
+
 on:
   workflow_run:
     workflows: [ci]
@@ -16,21 +17,50 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
-  checks: read
 
 jobs:
   merge:
-    # A repository marked as a GitHub template has no merge token and can use GitHub's own auto-merge, so the job is skipped there.
+    # A repository marked as a GitHub template has no merge to make and can use GitHub's own auto-merge, so the job is skipped there.
     if: >-
       !github.event.repository.is_template
-      && ((github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
-      || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'automerge')))
+      && (
+        (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
+        || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'automerge'))
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # contents and pull-requests write let the workflow token merge, and actions write lets it dispatch ci afterwards.
+    permissions:
+      actions: write
+      checks: read
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+      # Whether the merge uses the repository secret, evaluated here so the secret itself is never compared or exposed.
+      HAS_MERGE_TOKEN: ${{ secrets.MERGE_TOKEN != '' }}
     steps:
+      - name: List the open pull requests at the checked commit
+        id: open
+        run: |
+          numbers=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '[.[] | select(.state == "open") | .number] | join(" ")')
+          echo "numbers=${numbers}" >> "$GITHUB_OUTPUT"
       - uses: ExaDev/merge-when-green@46340dbd98a45c3cdf14737a53c24845b2ea951d # v1.6.3
         with:
           merge-method: rebase
-          merge-token: ${{ secrets.MERGE_TOKEN }}
+          merge-token: ${{ secrets.MERGE_TOKEN || github.token }}
           required-check: Required checks
+      # The workflow token's push starts no workflow run, so ci is started by hand once a merge has happened.
+      - name: Start ci on the default branch after a merge
+        if: ${{ env.HAS_MERGE_TOKEN == 'false' && steps.open.outputs.numbers != '' }}
+        env:
+          NUMBERS: ${{ steps.open.outputs.numbers }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          for number in $NUMBERS; do
+            if [ "$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json mergedAt --jq '.mergedAt != null')" = true ]; then
+              gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH"
+              exit 0
+            fi
+          done
