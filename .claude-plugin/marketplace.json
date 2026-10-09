@@ -77,6 +77,11 @@
       "name": "marketplace-maintainer",
       "source": "./plugins/marketplace-maintainer",
       "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout."
+    },
+    {
+      "name": "share-agent-setup",
+      "source": "./plugins/share-agent-setup",
+      "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt."
     }
   ]
 }

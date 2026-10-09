@@ -1,0 +1,45 @@
+---
+name: share-agent-setup
+description: Contribute a skill, agent, command, rule, hook or script from your own Claude Code setup to a plugin marketplace, either your own or someone else's, as real plugin files in a branch and pull request. Use when asked to "share this skill", "contribute this to the marketplace", "add this to my marketplace", "send this to <person>'s marketplace", "publish my setup as a plugin", or "share this directly" (the --direct override writes a setup prompt and a secret gist instead of touching a marketplace).
+argument-hint: "<piece>... [--to <owner>/<repo>] [--plugin <name>] [--direct] [--no-gist]"
+metadata:
+  internal: true
+---
+
+Turn pieces of the user's own setup into a contribution to a plugin marketplace, or into a prompt another person can build from. The piece is rewritten as portable plugin content, never copied raw, because a file written for one machine carries that machine's paths, identities and habits.
+
+## Arguments
+
+- `<piece>...`: the names of one or more pieces, of any kind (skill, agent, command, rule, hook, script). With none, take them from what the conversation was just about when that clearly names them, otherwise ask with `AskUserQuestion`.
+- `--to <owner>/<repo>`: contribute to that marketplace. Without it the target is a marketplace the user can push to (step 2).
+- `--plugin <name>`: add the piece to this existing plugin in the target marketplace instead of choosing one.
+- `--direct`: do not touch a marketplace. Write a self-contained setup prompt and share it as a secret gist, following `references/direct-share.md`. There is no question about it: the flag decides.
+- `--no-gist`: with `--direct`, write the prompt file only.
+
+## Procedure
+
+1. **Locate and read each piece in full.** Look in `~/.claude/skills/`, `~/.claude/agents/`, `~/.claude/commands/`, the project's `.claude/` and the installed plugin directories. A hook is an entry in a `settings.json`: read that entry only. Include the piece's scripts and references, and any notes recording why its rules exist, since hard-won gotchas are the most valuable content. Never open a secret-bearing file (`.env*`, `.npmrc`, kubeconfigs, key files, tokens in settings) to describe it; refer to the setting by name. If `--direct`, go to `references/direct-share.md` now.
+2. **Resolve the target marketplace.**
+   - With `--to`, use that repository. Check `gh repo view <owner>/<repo> --json visibility,viewerPermission`.
+   - Without it, collect the marketplaces the user has installed from `~/.claude/plugins/known_marketplaces.json`, keep those that are GitHub repositories where `viewerPermission` is `WRITE`, `MAINTAIN` or `ADMIN`, and use the only one. With several, ask with `AskUserQuestion`. With none, say so and offer `--direct`.
+   - Where the user has no push permission, fork it (`gh repo fork <owner>/<repo> --clone=false`) and work in a clone of the fork with the original as `upstream`. Never push to someone else's repository directly and never ask for the means to.
+3. **Survey the marketplace before writing anything.** Work in a `git worktree` or a fresh clone in a directory beside the checkout, never in a primary checkout. Read its `CONTRIBUTING.md`, code of conduct, pull request template and any authoring doc, and follow them exactly, including AI-content and licence policies; if they forbid AI-assisted contributions, stop and say so. Read `.claude-plugin/marketplace.json` and list `plugins/`. Check how skills are named (some tools drop a second skill with a name already used), whether entries carry a `version` or not, how releases are cut, and the commit convention. If an existing plugin has the same theme, add the piece to it rather than creating a plugin; `--plugin` forces the choice.
+4. **Write the piece as plugin content.** Follow the marketplace's own layout; where it has no stated rule, use Claude Code's: component files at the plugin root (`skills/<name>/SKILL.md`, `agents/<name>.md`, `commands/<name>.md`, `hooks/hooks.json` wrapped in a top-level `"hooks"` key), only `plugin.json` inside `.claude-plugin/`, and `${CLAUDE_PLUGIN_ROOT}` for paths inside the plugin.
+   - Separate behaviour from this machine. Behaviour is what it does, the decisions, the mechanics (commands, file formats) and the pitfalls. Machine-specific is the user name, home paths, identities and accounts, private repository and client names, tools the recipient will not have, and the user's own style rules. Keep the first, generalise or drop the second.
+   - A skill that runs its own scripts or hooks cannot work when installed alone, so set `metadata.internal: true` if the marketplace's docs say its skills tooling needs that.
+   - A hook is a plugin hook with a narrow `matcher`, because plugin hooks fire whether or not the plugin's skills run.
+   - Put the plugin's name, the marketplace entry (`source` as the marketplace's docs require) and a README with a content-owner section in the shape the marketplace uses. Copy the shape from a neighbouring plugin only after checking that its pattern is the right one rather than an artefact.
+5. **Check for personal details mechanically.** Run `${CLAUDE_SKILL_DIR}/scripts/leak-check.sh` over every file written, and fix each hit by generalising the text, never by redacting by hand. It finds the user name, home directory, host name, git email and token-shaped strings; it cannot find client, private repository or person names, so read the diff once more for those. A public target raises the bar: account and identity names, the provider or plan a session runs on, usage limits, host names, session ids and local paths are personal operating details and never go in.
+6. **Validate with the marketplace's own command**, the one its docs and CI use (commonly `claude plugin validate . --strict` or a package script such as `pnpm run validate`), not a narrower one. Smoke-test the piece with `claude --plugin-dir <plugin>` where that is feasible, and say which part was not run.
+7. **Commit and open the pull request.** Create a branch from the default branch, stage the files by name, and make one commit per logical change in the marketplace's convention (conventional commits where it uses them). Read each message back for process wording ("address feedback") and for variant data (counts, sizes).
+   - Own marketplace: push the branch and open a draft pull request, then mark it ready once checks pass.
+   - Someone else's marketplace: show the user the diff and the draft pull request title and body, and ask with `AskUserQuestion` before pushing or opening it, because it reaches a person the user does not control. Write the body as a developer would: what the plugin does and why it fits that marketplace, nothing more.
+8. **Report** the pull request link first, then what was contributed, what was left out on purpose, what could not be verified, and any dependency the recipient will lack.
+
+## Gotchas
+
+- Do not paste the piece's own text as if it were the plugin. A skill written for one machine mixes behaviour with personal paths and habits; rewrite it.
+- A marketplace's `CONTRIBUTING.md` overrides this procedure wherever they differ.
+- A leak check that passes is a floor. Names of clients, private repositories and people are not detected, and one in a public pull request is a disclosure.
+- `--direct` never opens a pull request and never pushes anywhere. Its only outward effect is a secret gist, which anyone holding the link can read.
+- Releases that happen on merge (a version bump and tag) are the marketplace's own job. Never edit a version by hand unless its docs say to.
