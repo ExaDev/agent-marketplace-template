@@ -41,6 +41,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
       paths: [
         'package.json',
         'tsconfig.json',
+        'eslint.config.ts',
         'commit-types.ts',
         'commitlint.config.ts',
         'lint-staged.config.ts',
@@ -56,15 +57,22 @@ export const CONTENT_MANIFEST: ContentManifest = {
         '@commitlint/cli',
         '@commitlint/config-conventional',
         '@commitlint/types',
+        '@eslint/js',
+        '@eslint/json',
+        '@eslint/markdown',
+        '@exadev/eslint-config',
         '@types/node',
+        'eslint',
         'husky',
         'lint-staged',
         'tsx',
         'typescript',
+        'typescript-eslint',
+        'typescript7',
         'yaml',
         'zod',
       ],
-      workspaceKeys: [],
+      workspaceKeys: ['minimumReleaseAgeExclude'],
     },
     skills: {
       paths: ['docs/skills-cli.md'],
@@ -94,9 +102,10 @@ export const CONTENT_MANIFEST: ContentManifest = {
         '@semantic-release/npm',
         '@semantic-release/release-notes-generator',
         'conventional-changelog-conventionalcommits',
+        'globals',
         'semantic-release',
       ],
-      workspaceKeys: ['packages', 'minimumReleaseAgeExclude'],
+      workspaceKeys: ['packages'],
     },
   },
   templatePaths: [
@@ -159,23 +168,29 @@ interface ScriptDefinition {
  */
 export const VALIDATE_STEPS: readonly { readonly script: string; readonly owner: ContentType }[] = [
   { script: 'typecheck', owner: 'core' },
+  { script: 'lint', owner: 'core' },
+  { script: 'test', owner: 'core' },
   { script: 'check:skills', owner: 'core' },
   { script: 'check:versions', owner: 'claude' },
   { script: 'check:readme', owner: 'core' },
   { script: 'validate:plugins', owner: 'claude' },
 ];
 
-/** Every package.json script, in the order package.json lists them. */
+/** Every package.json script, in the order package.json lists them, which is the order `exadev/package-json-key-order` requires. */
 export const SCRIPT_DEFINITIONS: Readonly<Record<string, ScriptDefinition>> = {
-  prepare: { owner: 'core', command: () => 'husky' },
-  typecheck: { owner: 'core', command: () => 'tsc --noEmit' },
-  test: { owner: 'core', command: () => 'node --import tsx --test "scripts/*.test.ts"' },
+  'check:ci-skip': { owner: 'core', command: () => 'tsx scripts/check-ci-skip-tokens.ts' },
+  'check:readme': { owner: 'core', command: () => 'tsx scripts/generate-readme-table.ts --check' },
   'check:skills': { owner: 'core', command: (selected) => `tsx scripts/check-skills.ts${selected.has('skills') ? ' --with-cli' : ''}` },
   'check:versions': { owner: 'claude', command: () => 'tsx scripts/sync-plugin-version.ts --check' },
-  'check:readme': { owner: 'core', command: () => 'tsx scripts/generate-readme-table.ts --check' },
-  'check:ci-skip': { owner: 'core', command: () => 'tsx scripts/check-ci-skip-tokens.ts' },
+  init: { owner: 'template', command: () => 'tsx scripts/init.ts' },
+  lint: { owner: 'core', command: () => 'eslint . --max-warnings 0' },
   'lint:commits': { owner: 'core', command: () => 'commitlint' },
-  'validate:plugins': { owner: 'claude', command: () => 'tsx scripts/validate-plugins.ts' },
+  'lint:fix': { owner: 'core', command: () => 'eslint . --fix --max-warnings 0' },
+  prepare: { owner: 'core', command: () => 'husky' },
+  readme: { owner: 'core', command: () => 'tsx scripts/generate-readme-table.ts' },
+  release: { owner: 'claude', command: () => 'semantic-release-workspace release --config release-workspace.config.ts' },
+  test: { owner: 'core', command: () => 'node --import tsx --test "scripts/*.test.ts"' },
+  typecheck: { owner: 'core', command: () => 'tsc --noEmit' },
   validate: {
     owner: 'core',
     command: (selected) =>
@@ -183,9 +198,7 @@ export const SCRIPT_DEFINITIONS: Readonly<Record<string, ScriptDefinition>> = {
         .map((step) => `pnpm run ${step.script}`)
         .join(' && '),
   },
-  readme: { owner: 'core', command: () => 'tsx scripts/generate-readme-table.ts' },
-  release: { owner: 'claude', command: () => 'semantic-release-workspace release --config release-workspace.config.ts' },
-  init: { owner: 'template', command: () => 'tsx scripts/init.ts' },
+  'validate:plugins': { owner: 'claude', command: () => 'tsx scripts/validate-plugins.ts' },
 };
 
 /** The package.json scripts for a kept set of types; `template` scripts appear only when `includeTemplate` is set. */
