@@ -1,7 +1,9 @@
 {
-  "name": "example-output-styles",
-  "version": "0.1.0",
+  "author": {
+    "name": "ExaDev"
+  },
   "description": "Minimal example of a plugin-provided output style.",
-  "author": { "name": "ExaDev" },
-  "license": "MIT"
+  "license": "MIT",
+  "name": "example-output-styles",
+  "version": "0.1.0"
 }

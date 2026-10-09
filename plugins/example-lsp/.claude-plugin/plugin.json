@@ -1,7 +1,9 @@
 {
-  "name": "example-lsp",
-  "version": "0.1.0",
+  "author": {
+    "name": "ExaDev"
+  },
   "description": "Minimal example of a plugin-provided language server configuration for TypeScript and JavaScript.",
-  "author": { "name": "ExaDev" },
-  "license": "MIT"
+  "license": "MIT",
+  "name": "example-lsp",
+  "version": "0.1.0"
 }

@@ -3,26 +3,26 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
         "hooks": [
           {
-            "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/guard-bash.sh",
-            "timeout": 10
+            "timeout": 10,
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ],
     "SessionStart": [
       {
-        "matcher": "startup",
         "hooks": [
           {
-            "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/install-starter.sh",
-            "timeout": 10
+            "timeout": 10,
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "startup"
       }
     ]
   }

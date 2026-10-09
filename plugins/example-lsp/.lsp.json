@@ -1,12 +1,14 @@
 {
   "typescript": {
+    "args": [
+      "--stdio"
+    ],
     "command": "typescript-language-server",
-    "args": ["--stdio"],
     "extensionToLanguage": {
-      ".ts": "typescript",
-      ".tsx": "typescriptreact",
       ".js": "javascript",
-      ".jsx": "javascriptreact"
+      ".jsx": "javascriptreact",
+      ".ts": "typescript",
+      ".tsx": "typescriptreact"
     }
   }
 }
