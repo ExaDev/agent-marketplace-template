@@ -1,31 +1,14 @@
 {
   "name": "agent-marketplace-template",
   "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": ">=24"
-  },
-  "packageManager": "pnpm@12.8.1",
-  "scripts": {
-    "prepare": "husky",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"scripts/*.test.ts\"",
-    "check:skills": "tsx scripts/check-skills.ts --with-cli",
-    "check:versions": "tsx scripts/sync-plugin-version.ts --check",
-    "check:readme": "tsx scripts/generate-readme-table.ts --check",
-    "check:ci-skip": "tsx scripts/check-ci-skip-tokens.ts",
-    "lint:commits": "commitlint",
-    "validate:plugins": "tsx scripts/validate-plugins.ts",
-    "validate": "pnpm run typecheck && pnpm run check:skills && pnpm run check:versions && pnpm run check:readme && pnpm run validate:plugins",
-    "readme": "tsx scripts/generate-readme-table.ts",
-    "release": "semantic-release-workspace release --config release-workspace.config.ts",
-    "init": "tsx scripts/init.ts"
-  },
   "devDependencies": {
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
     "@commitlint/types": "21.2.3",
+    "@eslint/js": "10.0.1",
+    "@eslint/json": "2.1.1",
+    "@eslint/markdown": "8.0.3",
+    "@exadev/eslint-config": "2.36.0",
     "@exadev/semantic-release-workspace": "3.1.25",
     "@semantic-release/changelog": "7.0.0",
     "@semantic-release/commit-analyzer": "13.0.1",
@@ -36,13 +19,40 @@
     "@semantic-release/release-notes-generator": "14.1.1",
     "@types/node": "26.6.4",
     "conventional-changelog-conventionalcommits": "9.3.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "semantic-release": "25.0.9",
     "skills": "1.7.0",
     "tsx": "4.23.15",
-    "typescript": "7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "8.71.1",
+    "typescript7": "npm:typescript@7.0.2",
     "yaml": "2.9.1",
     "zod": "4.6.5"
-  }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "private": true,
+  "scripts": {
+    "check:ci-skip": "tsx scripts/check-ci-skip-tokens.ts",
+    "check:readme": "tsx scripts/generate-readme-table.ts --check",
+    "check:skills": "tsx scripts/check-skills.ts --with-cli",
+    "check:versions": "tsx scripts/sync-plugin-version.ts --check",
+    "init": "tsx scripts/init.ts",
+    "lint": "eslint . --max-warnings 0",
+    "lint:commits": "commitlint",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "prepare": "husky",
+    "readme": "tsx scripts/generate-readme-table.ts",
+    "release": "semantic-release-workspace release --config release-workspace.config.ts",
+    "test": "node --import tsx --test \"scripts/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run check:skills && pnpm run check:versions && pnpm run check:readme && pnpm run validate:plugins",
+    "validate:plugins": "tsx scripts/validate-plugins.ts"
+  },
+  "type": "module"
 }
