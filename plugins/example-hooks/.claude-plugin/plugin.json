@@ -1,7 +1,9 @@
 {
-  "name": "example-hooks",
-  "version": "0.1.0",
+  "author": {
+    "name": "ExaDev"
+  },
   "description": "Minimal example of plugin hooks: a PreToolUse Bash guard and an opt-in, hash-tracked SessionStart installer.",
-  "author": { "name": "ExaDev" },
-  "license": "MIT"
+  "license": "MIT",
+  "name": "example-hooks",
+  "version": "0.1.0"
 }

@@ -1,7 +1,9 @@
 {
-  "name": "example-bin",
-  "version": "0.1.0",
+  "author": {
+    "name": "ExaDev"
+  },
   "description": "Minimal example of a plugin executable on the Bash tool PATH.",
-  "author": { "name": "ExaDev" },
-  "license": "MIT"
+  "license": "MIT",
+  "name": "example-bin",
+  "version": "0.1.0"
 }

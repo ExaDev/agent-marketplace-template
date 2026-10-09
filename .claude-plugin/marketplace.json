@@ -1,87 +1,87 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "metadata": {
+    "description": "A working example of every Claude Code plugin component type, in a marketplace that skills tooling can also read."
+  },
   "name": "agent-marketplace-template",
   "owner": {
     "name": "ExaDev"
   },
-  "metadata": {
-    "description": "A working example of every Claude Code plugin component type, in a marketplace that skills tooling can also read."
-  },
   "plugins": [
     {
+      "description": "Minimal example of the agent component type: two subagent personas.",
       "name": "example-agents",
-      "source": "./plugins/example-agents",
-      "description": "Minimal example of the agent component type: two subagent personas."
+      "source": "./plugins/example-agents"
     },
     {
+      "description": "Minimal example of a plugin executable on the Bash tool PATH.",
       "name": "example-bin",
-      "source": "./plugins/example-bin",
-      "description": "Minimal example of a plugin executable on the Bash tool PATH."
+      "source": "./plugins/example-bin"
     },
     {
+      "description": "Minimal example of a bundle: a plugin with no components that installs other plugins as dependencies.",
       "name": "example-bundle",
-      "source": "./plugins/example-bundle",
-      "description": "Minimal example of a bundle: a plugin with no components that installs other plugins as dependencies."
+      "source": "./plugins/example-bundle"
     },
     {
+      "description": "Minimal example of the command component type: one flat slash command that takes arguments.",
       "name": "example-commands",
-      "source": "./plugins/example-commands",
-      "description": "Minimal example of the command component type: one flat slash command that takes arguments."
+      "source": "./plugins/example-commands"
     },
     {
+      "description": "Minimal example of plugin hooks: a PreToolUse Bash guard and an opt-in, hash-tracked SessionStart installer.",
       "name": "example-hooks",
-      "source": "./plugins/example-hooks",
-      "description": "Minimal example of plugin hooks: a PreToolUse Bash guard and an opt-in, hash-tracked SessionStart installer."
+      "source": "./plugins/example-hooks"
     },
     {
+      "description": "Minimal example of a plugin-provided language server configuration for TypeScript and JavaScript.",
       "name": "example-lsp",
-      "source": "./plugins/example-lsp",
-      "description": "Minimal example of a plugin-provided language server configuration for TypeScript and JavaScript."
+      "source": "./plugins/example-lsp"
     },
     {
+      "description": "Minimal example of a plugin-provided MCP server: a dependency-free stdio server with one tool.",
       "name": "example-mcp",
-      "source": "./plugins/example-mcp",
-      "description": "Minimal example of a plugin-provided MCP server: a dependency-free stdio server with one tool."
+      "source": "./plugins/example-mcp"
     },
     {
+      "description": "Minimal example of a plugin background monitor.",
       "name": "example-monitors",
-      "source": "./plugins/example-monitors",
-      "description": "Minimal example of a plugin background monitor."
+      "source": "./plugins/example-monitors"
     },
     {
+      "description": "Minimal example of a plugin-provided output style.",
       "name": "example-output-styles",
-      "source": "./plugins/example-output-styles",
-      "description": "Minimal example of a plugin-provided output style."
+      "source": "./plugins/example-output-styles"
     },
     {
+      "description": "Minimal example of plugin default settings, including the agent setting.",
       "name": "example-settings",
-      "source": "./plugins/example-settings",
-      "description": "Minimal example of plugin default settings, including the agent setting."
+      "source": "./plugins/example-settings"
     },
     {
+      "description": "Minimal example of the skill component type: two skills, one with a reference file and a script, one that reads a shared file.",
       "name": "example-skills",
-      "source": "./plugins/example-skills",
-      "description": "Minimal example of the skill component type: two skills, one with a reference file and a script, one that reads a shared file."
+      "source": "./plugins/example-skills"
     },
     {
+      "description": "Minimal example of a plugin colour theme.",
       "name": "example-themes",
-      "source": "./plugins/example-themes",
-      "description": "Minimal example of a plugin colour theme."
+      "source": "./plugins/example-themes"
     },
     {
+      "description": "Minimal example of a plugin dynamic workflow.",
       "name": "example-workflows",
-      "source": "./plugins/example-workflows",
-      "description": "Minimal example of a plugin dynamic workflow."
+      "source": "./plugins/example-workflows"
     },
     {
+      "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout.",
       "name": "marketplace-maintainer",
-      "source": "./plugins/marketplace-maintainer",
-      "description": "Skills that add, validate and remove plugins in a plugin marketplace checkout."
+      "source": "./plugins/marketplace-maintainer"
     },
     {
+      "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt.",
       "name": "share-agent-setup",
-      "source": "./plugins/share-agent-setup",
-      "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt."
+      "source": "./plugins/share-agent-setup"
     }
   ]
 }
