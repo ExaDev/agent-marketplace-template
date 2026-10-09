@@ -2,39 +2,115 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead. The workflow checks out nothing and runs no pull request code, which is what makes the pull_request_target trigger safe.
+# A label authorises one head commit. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request whose head has no such status, so a commit pushed after the label can never be merged on the strength of the earlier one; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself is pinned by merge-when-green to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. None of these jobs checks out or runs pull request code, which is what makes the pull_request_target trigger safe, and every value taken from the event reaches a shell through an environment variable.
+#
+# The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
 
 on:
   workflow_run:
     workflows: [ci]
     types: [completed]
   pull_request_target:
-    types: [labeled, ready_for_review]
-
-concurrency:
-  group: merge-when-green-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
-  cancel-in-progress: false
+    types: [labeled, ready_for_review, synchronize]
 
 permissions:
   contents: read
 
+env:
+  LABEL: automerge
+  AUTHORISED_CONTEXT: merge-when-green/authorised
+
 jobs:
-  merge:
+  # Runs only when the label is applied. Authorisation is a commit status keyed by the head sha, so it cannot carry over to a later commit and needs no ordering of events.
+  authorise:
     # A repository marked as a GitHub template has no merge to make and can use GitHub's own auto-merge, so the job is skipped there.
     if: >-
       !github.event.repository.is_template
+      && github.event_name == 'pull_request_target'
+      && github.event.action == 'labeled'
+      && github.event.label.name == 'automerge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Label events and pushes for one pull request run one at a time, and a newer event replaces a waiting one.
+    concurrency:
+      group: merge-when-green-label-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    # pull-requests write removes the label again when nothing was authorised, statuses write records the authorisation.
+    permissions:
+      pull-requests: write
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ github.event.pull_request.number }}
+      EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      ACTOR: ${{ github.event.sender.login }}
+    steps:
+      - name: Authorise the head commit
+        run: |
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::Pull request $NUMBER comes from a fork, so it is not authorised for automatic merging; merge it by hand."
+            exit 1
+          fi
+          live=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}" --jq .head.sha)
+          if [ "$live" != "$EVENT_HEAD" ]; then
+            echo "::error::Pull request $NUMBER moved from $EVENT_HEAD to $live after the label was applied; apply it again to the commit you reviewed."
+            exit 1
+          fi
+          can_write=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission" --jq .user.permissions.push)
+          if [ "$can_write" != true ]; then
+            echo "::error::$ACTOR cannot write to this repository, so the label does not authorise a merge."
+            exit 1
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${live}" -f state=success -f context="$AUTHORISED_CONTEXT" -f description="Authorised by $ACTOR"
+      - name: Remove a label that authorised nothing
+        if: ${{ failure() }}
+        run: gh pr edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"
+
+  # Runs on every push to a pull request, so a label always has to be applied again to a new head commit.
+  revoke:
+    if: >-
+      !github.event.repository.is_template
+      && github.event_name == 'pull_request_target'
+      && github.event.action == 'synchronize'
+      && contains(github.event.pull_request.labels.*.name, 'automerge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: merge-when-green-label-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    # pull-requests write removes the label.
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Remove the label
+        run: gh pr edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"
+
+  merge:
+    needs: authorise
+    if: >-
+      !github.event.repository.is_template
+      && !cancelled()
+      && needs.authorise.result != 'failure'
       && (
         (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
-        || (github.event_name == 'pull_request_target' && contains(github.event.pull_request.labels.*.name, 'automerge'))
+        || (github.event_name == 'pull_request_target' && github.event.action != 'synchronize' && contains(github.event.pull_request.labels.*.name, 'automerge'))
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # contents and pull-requests write let the workflow token merge, and actions write lets it dispatch ci afterwards.
+    concurrency:
+      group: merge-when-green-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+      cancel-in-progress: false
+    # contents and pull-requests write let the workflow token merge, actions write lets it dispatch ci afterwards, and statuses read lets it see the authorisation.
     permissions:
       actions: write
       checks: read
       contents: write
       pull-requests: write
+      statuses: read
     env:
       GH_TOKEN: ${{ github.token }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
@@ -46,6 +122,22 @@ jobs:
         run: |
           numbers=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '[.[] | select(.state == "open") | .number] | join(" ")')
           echo "numbers=${numbers}" >> "$GITHUB_OUTPUT"
+      # The action merges any labelled pull request whose checks pass, so a labelled one whose head was never authorised must stop the run before it. Only the workflow's own status counts.
+      - name: Require the labelled head commit to be authorised
+        env:
+          NUMBERS: ${{ steps.open.outputs.numbers }}
+        run: |
+          failed=0
+          for number in $NUMBERS; do
+            labelled=$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json labels --jq "any(.labels[]; .name == \"$LABEL\")")
+            [ "$labelled" = true ] || continue
+            state=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses?per_page=100" --jq "[.[] | select(.context == \"$AUTHORISED_CONTEXT\" and .creator.login == \"github-actions[bot]\")] | first | .state // \"none\"")
+            if [ "$state" != success ]; then
+              echo "::error::Pull request $number is labelled but $HEAD_SHA was never authorised; remove the label and apply it again to the commit you reviewed."
+              failed=1
+            fi
+          done
+          exit "$failed"
       - uses: ExaDev/merge-when-green@46340dbd98a45c3cdf14737a53c24845b2ea951d # v1.6.3
         with:
           merge-method: rebase
