@@ -84,6 +84,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
         '.claude-plugin',
         'plugins',
         'release-workspace.config.ts',
+        'workflow-globals.d.ts',
         'scripts/sync-plugin-version.ts',
         'scripts/sync-plugin-version.unit.test.ts',
         'scripts/validate-plugins.ts',
