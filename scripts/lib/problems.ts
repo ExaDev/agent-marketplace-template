@@ -14,9 +14,11 @@ export class Problems {
   report(checkName: string): number {
     if (!this.any) {
       console.log(`${checkName}: ok`);
+
       return 0;
     }
     for (const message of this.messages) console.error(`${checkName}: ${message}`);
+
     return 1;
   }
 }

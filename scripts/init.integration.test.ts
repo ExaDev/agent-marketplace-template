@@ -22,7 +22,7 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SKIPPED = new Set(['node_modules', '.git']);
 
 const cleanups: (() => void)[] = [];
-after(() => cleanups.forEach((remove) => remove()));
+after(() => { cleanups.forEach((remove) => { remove(); }); });
 
 /** A copy of this repository's files, without installed dependencies or history, to transform. */
 function copyOfTemplate(): string {
@@ -30,6 +30,7 @@ function copyOfTemplate(): string {
   cleanups.push(remove);
   // verbatimSymlinks keeps AGENTS.md and CLAUDE.md pointing inside the copy; resolved links would make the transform rewrite this repository's own files.
   cpSync(REPO_ROOT, dir, { recursive: true, verbatimSymlinks: true, filter: (source) => !SKIPPED.has(source.split('/').pop() ?? '') });
+
   return dir;
 }
 
@@ -48,6 +49,7 @@ function listFiles(root: string): Map<string, string> {
     }
   };
   walk(root);
+
   return files;
 }
 
@@ -58,13 +60,13 @@ function listFiles(root: string): Map<string, string> {
 function assertLayout(root: string, content: readonly SelectableContent[], marketplaceName = 'acme-marketplace'): void {
   const claude = content.includes('claude');
   const skills = content.includes('skills');
-  const expectPresent = (path: string, present: boolean): void => assert.equal(existsSync(join(root, path)), present, `${path} should ${present ? '' : 'not '}exist`);
+  const expectPresent = (path: string, present: boolean): void => { assert.equal(existsSync(join(root, path)), present, `${path} should ${present ? '' : 'not '}exist`); };
 
   expectPresent('commitlint.config.ts', true);
   expectPresent('commit-types.ts', true);
   expectPresent('scripts/check-skills.ts', true);
   expectPresent('LICENSE', true);
-  for (const path of ['scripts/init.ts', 'scripts/content.ts', 'scripts/init.test.ts', 'scripts/init', '.github/workflows/template-selfcheck.yml']) expectPresent(path, false);
+  for (const path of ['scripts/init.ts', 'scripts/content.ts', 'scripts/init.integration.test.ts', 'scripts/init', '.github/workflows/template-selfcheck.yml']) expectPresent(path, false);
 
   for (const path of ['.claude-plugin/marketplace.json', 'plugins', 'plugins/example-skills/skills/word-count/SKILL.md', 'release-workspace.config.ts', 'scripts/sync-plugin-version.ts', 'scripts/validate-plugins.ts', 'docs/releasing.md']) {
     expectPresent(path, claude);
@@ -126,7 +128,7 @@ function assertMarketplaceFile(root: string, marketplaceName: string): void {
   assert.deepEqual(marketplace.metadata, { description: 'Plugins and skills maintained by Acme Ltd.' });
 }
 
-describe('--content normalisation', () => {
+void describe('--content normalisation', () => {
   const cases: readonly (readonly [string, readonly SelectableContent[]])[] = [
     ['all', ['skills', 'claude']],
     ['skills', ['skills']],
@@ -138,54 +140,54 @@ describe('--content normalisation', () => {
     ['all,claude', ['skills', 'claude']],
   ];
   for (const [input, expected] of cases) {
-    it(`"${input}" becomes ${expected.join(',')}`, () => assert.deepEqual(parseContentList(input), expected));
+    void it(`"${input}" becomes ${expected.join(',')}`, () => { assert.deepEqual(parseContentList(input), expected); });
   }
 
   for (const input of ['', '  ', ',', 'plugins', 'skills,plugins', 'skills,,claude', 'ALL']) {
-    it(`"${input}" is an error naming the valid values`, () => assert.throws(() => parseContentList(input), /valid values: skills, claude, all/));
+    void it(`"${input}" is an error naming the valid values`, () => { assert.throws(() => parseContentList(input), /valid values: skills, claude, all/); });
   }
 
-  it('all selects exactly what skills,claude selects', () => {
+  void it('all selects exactly what skills,claude selects', () => {
     assert.deepEqual(parseContentList('all'), parseContentList('skills,claude'));
     assert.deepEqual(selectedTypes(parseContentList('all')), selectedTypes(parseContentList('skills,claude')));
   });
 });
 
-describe('the content manifest', () => {
-  it('owns only paths that exist', () => {
+void describe('the content manifest', () => {
+  void it('owns only paths that exist', () => {
     const paths = [...CONTENT_TYPES.flatMap((type) => CONTENT_MANIFEST.modules[type].paths), ...CONTENT_MANIFEST.templatePaths];
     for (const path of paths) assert.ok(existsSync(join(REPO_ROOT, path)), `${path} is owned by the manifest but missing`);
   });
 
-  it('gives every devDependency exactly one owner', () => {
+  void it('gives every devDependency exactly one owner', () => {
     const pkg = readJson(join(REPO_ROOT, 'package.json'), packageJsonSchema);
     const owned = CONTENT_TYPES.flatMap((type) => CONTENT_MANIFEST.modules[type].devDependencies);
     assert.deepEqual([...owned].sort(), Object.keys(pkg.devDependencies ?? {}).sort());
   });
 
-  it('matches the scripts in package.json for the full set', () => {
+  void it('matches the scripts in package.json for the full set', () => {
     const pkg = readJson(join(REPO_ROOT, 'package.json'), packageJsonSchema);
     assert.deepEqual(pkg.scripts, buildScripts(selectedTypes(['skills', 'claude']), true));
   });
 
-  it('defines no script that package.json lacks', () => {
+  void it('defines no script that package.json lacks', () => {
     const pkg = readJson(join(REPO_ROOT, 'package.json'), packageJsonSchema);
     assert.deepEqual(Object.keys(pkg.scripts ?? {}), Object.keys(SCRIPT_DEFINITIONS));
   });
 });
 
-describe('applyInit', () => {
+void describe('applyInit', () => {
   const sets: readonly (readonly SelectableContent[])[] = [['skills'], ['claude'], ['skills', 'claude']];
 
   for (const content of sets) {
-    it(`produces the ${content.join(',')} layout`, () => {
+    void it(`produces the ${content.join(',')} layout`, () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, content));
       assertLayout(dir, content);
     });
   }
 
-  it('gives all and skills,claude identical trees', () => {
+  void it('gives all and skills,claude identical trees', () => {
     const first = copyOfTemplate();
     const second = copyOfTemplate();
     applyInit(options(first, parseContentList('all')));
@@ -193,7 +195,7 @@ describe('applyInit', () => {
     assert.deepEqual([...listFiles(first)], [...listFiles(second)]);
   });
 
-  it('keeps the plugin layout the same for claude and skills,claude apart from the skills CLI parts', () => {
+  void it('keeps the plugin layout the same for claude and skills,claude apart from the skills CLI parts', () => {
     const claudeOnly = copyOfTemplate();
     const both = copyOfTemplate();
     applyInit(options(claudeOnly, ['claude']));
@@ -204,7 +206,7 @@ describe('applyInit', () => {
     assert.deepEqual([...only.keys()].filter((path) => !all.has(path)), []);
   });
 
-  it('rewrites the placeholders and leaves no template name behind', () => {
+  void it('rewrites the placeholders and leaves no template name behind', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['skills', 'claude']));
     const marketplace = readFileSync(join(dir, '.claude-plugin/marketplace.json'), 'utf8');
@@ -218,7 +220,7 @@ describe('applyInit', () => {
   });
 
   for (const content of [['skills'], ['claude'], ['skills', 'claude']] as const) {
-    it(`leaves no template voice, placeholder or template name in the ${content.join(',')} repository`, () => {
+    void it(`leaves no template voice, placeholder or template name in the ${content.join(',')} repository`, () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, content));
       for (const [path, text] of listFiles(dir)) {
@@ -231,14 +233,14 @@ describe('applyInit', () => {
     });
   }
 
-  it('writes the contact to the security policy and the code of conduct', () => {
+  void it('writes the contact to the security policy and the code of conduct', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['skills'], { contact: 'https://acme.example/report' }));
     assert.ok(readFileSync(join(dir, 'SECURITY.md'), 'utf8').includes('`https://acme.example/report`'));
     assert.ok(readFileSync(join(dir, 'CODE_OF_CONDUCT.md'), 'utf8').includes('`https://acme.example/report`'));
   });
 
-  it('fills the repository and marketplace names into the distribution docs and leaves third-party examples alone', () => {
+  void it('fills the repository and marketplace names into the distribution docs and leaves third-party examples alone', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['claude'], { marketplaceName: 'acme' }));
     const distribution = readFileSync(join(dir, 'docs/distribution.md'), 'utf8');
@@ -251,7 +253,7 @@ describe('applyInit', () => {
     assert.ok(readFileSync(join(dir, 'docs/rulesets.md'), 'utf8').includes('repos/acme-org/acme-marketplace/rulesets'));
   });
 
-  it('writes repository metadata to package.json and each plugin manifest', () => {
+  void it('writes repository metadata to package.json and each plugin manifest', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['claude']));
     const url = 'https://github.com/acme-org/acme-marketplace';
@@ -265,24 +267,24 @@ describe('applyInit', () => {
     assert.equal('homepage' in manifest && manifest.homepage, url);
   });
 
-  it('rejects a contact that is neither an email address nor an http(s) URL', () => {
+  void it('rejects a contact that is neither an email address nor an http(s) URL', () => {
     for (const contact of ['', 'security', 'ftp://acme.example', 'a b@acme.example', 'mailto:x@acme.example']) {
-      assert.throws(() => applyInit(options(copyOfTemplate(), ['skills'], { contact })), /--contact/, contact);
+      assert.throws(() => { applyInit(options(copyOfTemplate(), ['skills'], { contact })); }, /--contact/, contact);
     }
   });
 
-  it('accepts an email address and an http(s) URL as a contact', () => {
+  void it('accepts an email address and an http(s) URL as a contact', () => {
     for (const contact of ['security@acme.example', 'http://acme.example/report', 'https://acme.example/report?x=1']) assert.ok(isContact(contact), contact);
   });
 
-  it('writes a proprietary notice and marks plugins unlicensed', () => {
+  void it('writes a proprietary notice and marks plugins unlicensed', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['claude'], { licence: 'proprietary' }));
     assert.match(readFileSync(join(dir, 'LICENSE'), 'utf8'), /^Copyright \(c\) 2031 Acme Ltd\. All rights reserved\./);
     assert.match(readFileSync(join(dir, 'plugins/example-skills/.claude-plugin/plugin.json'), 'utf8'), /"license": "UNLICENSED"/);
   });
 
-  it('removes example plugins and their entries with --examples none', () => {
+  void it('removes example plugins and their entries with --examples none', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['claude'], { examples: 'none' }));
     assert.deepEqual(readdirSync(join(dir, 'plugins')).sort(), ['marketplace-maintainer', 'share-agent-setup']);
@@ -292,14 +294,14 @@ describe('applyInit', () => {
     assert.match(marketplace, /share-agent-setup/);
   });
 
-  it('writes one starter skill for a skills-only repository with --examples none', () => {
+  void it('writes one starter skill for a skills-only repository with --examples none', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['skills'], { examples: 'none' }));
     assert.deepEqual(readdirSync(join(dir, 'skills')), ['starter']);
     assert.ok(!existsSync(join(dir, 'shared')));
   });
 
-  it('names the marketplace separately from the repository', () => {
+  void it('names the marketplace separately from the repository', () => {
     const dir = copyOfTemplate();
     applyInit(options(dir, ['skills', 'claude'], { marketplaceName: 'acme' }));
     assertLayout(dir, ['skills', 'claude'], 'acme');
@@ -309,52 +311,53 @@ describe('applyInit', () => {
     assert.ok(readme.includes('/plugin install <plugin>@acme\n'), 'the install command uses the marketplace name');
   });
 
-  it('rejects a marketplace name without the claude content type', () => {
-    assert.throws(() => applyInit(options(copyOfTemplate(), ['skills'], { marketplaceName: 'acme' })), /--marketplace-name needs the claude content type/);
+  void it('rejects a marketplace name without the claude content type', () => {
+    assert.throws(() => { applyInit(options(copyOfTemplate(), ['skills'], { marketplaceName: 'acme' })); }, /--marketplace-name needs the claude content type/);
   });
 
-  it('rejects a marketplace name Claude Code would not accept', () => {
-    assert.throws(() => applyInit(options(copyOfTemplate(), ['claude'], { marketplaceName: 'Not Valid' })), /--marketplace-name/);
+  void it('rejects a marketplace name Claude Code would not accept', () => {
+    assert.throws(() => { applyInit(options(copyOfTemplate(), ['claude'], { marketplaceName: 'Not Valid' })); }, /--marketplace-name/);
   });
 
-  it('rejects a name Claude Code would not accept', () => {
-    assert.throws(() => applyInit(options(copyOfTemplate(), ['claude'], { name: 'Not Valid' })), /--name/);
+  void it('rejects a name Claude Code would not accept', () => {
+    assert.throws(() => { applyInit(options(copyOfTemplate(), ['claude'], { name: 'Not Valid' })); }, /--name/);
   });
 
-  describe('mutation check: breaking an owned-path rule fails the layout oracle', () => {
+  void describe('mutation check: breaking an owned-path rule fails the layout oracle', () => {
     function mutated(type: 'claude' | 'skills', removed: string): ContentManifest {
       const module = CONTENT_MANIFEST.modules[type];
+
       return { ...CONTENT_MANIFEST, modules: { ...CONTENT_MANIFEST.modules, [type]: { ...module, paths: module.paths.filter((path) => path !== removed) } } };
     }
 
-    it('detects plugins/ left behind in a skills-only repository', () => {
+    void it('detects plugins/ left behind in a skills-only repository', () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, ['skills']), mutated('claude', 'plugins'));
-      assert.throws(() => assertLayout(dir, ['skills']), /plugins should not exist/);
+      assert.throws(() => { assertLayout(dir, ['skills']); }, /plugins should not exist/);
     });
 
-    it('detects the skills CLI docs left behind in a claude-only repository', () => {
+    void it('detects the skills CLI docs left behind in a claude-only repository', () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, ['claude']), mutated('skills', 'docs/skills-cli.md'));
-      assert.throws(() => assertLayout(dir, ['claude']), /docs\/skills-cli\.md should not exist/);
+      assert.throws(() => { assertLayout(dir, ['claude']); }, /docs\/skills-cli\.md should not exist/);
     });
 
-    it('detects the template README left in place', () => {
-      assert.throws(() => assertReadme(REPO_ROOT, ['skills', 'claude'], 'acme-marketplace'));
+    void it('detects the template README left in place', () => {
+      assert.throws(() => { assertReadme(REPO_ROOT, ['skills', 'claude'], 'acme-marketplace'); });
     });
 
-    it('passes the same oracle with the real manifest', () => {
+    void it('passes the same oracle with the real manifest', () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, ['skills']));
-      assert.doesNotThrow(() => assertLayout(dir, ['skills']));
+      assert.doesNotThrow(() => { assertLayout(dir, ['skills']); });
     });
   });
 });
 
-describe('a generated repository validates itself', () => {
+void describe('a generated repository validates itself', () => {
   const sets: readonly (readonly SelectableContent[])[] = [['skills'], ['claude'], ['skills', 'claude']];
   for (const content of sets) {
-    it(`installs and passes validate for ${content.join(',')}`, { timeout: 600_000 }, () => {
+    void it(`installs and passes validate for ${content.join(',')}`, { timeout: 600_000 }, () => {
       const dir = copyOfTemplate();
       applyInit(options(dir, content));
       runInherited('pnpm', ['install', '--no-frozen-lockfile'], dir);

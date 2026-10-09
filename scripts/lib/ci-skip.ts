@@ -8,5 +8,6 @@ export const CI_SKIP_TOKENS: readonly string[] = ['[skip ci]', '[ci skip]', '[no
 /** Reports every token that appears in one commit message, case-insensitively. */
 export function findSkipTokens(message: string): string[] {
   const lower = message.toLowerCase();
+
   return CI_SKIP_TOKENS.filter((token) => lower.includes(token));
 }

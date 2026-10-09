@@ -8,16 +8,6 @@ const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 /** Relative Markdown links in regular files (symbolic links are checked through their target), outside code fences, whose target does not exist, as `file: target` strings. */
 export function findBrokenRelativeLinks(root: string): string[] {
   const broken: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      if (IGNORED_DIRECTORIES.has(entry)) continue;
-      const full = join(dir, entry);
-      const stat = lstatSync(full);
-      if (stat.isSymbolicLink()) continue;
-      if (stat.isDirectory()) walk(full);
-      else if (entry.endsWith('.md')) checkFile(full);
-    }
-  };
   const checkFile = (file: string): void => {
     let fenced = false;
     for (const line of readFileSync(file, 'utf8').split('\n')) {
@@ -31,6 +21,17 @@ export function findBrokenRelativeLinks(root: string): string[] {
       }
     }
   };
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir)) {
+      if (IGNORED_DIRECTORIES.has(entry)) continue;
+      const full = join(dir, entry);
+      const stat = lstatSync(full);
+      if (stat.isSymbolicLink()) continue;
+      if (stat.isDirectory()) walk(full);
+      else if (entry.endsWith('.md')) checkFile(full);
+    }
+  };
   walk(root);
+
   return broken;
 }

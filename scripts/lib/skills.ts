@@ -26,6 +26,7 @@ export function findSkillFiles(root: string): string[] {
     }
   };
   walk(root);
+
   return found.sort();
 }
 
@@ -36,5 +37,6 @@ export function readSkillFrontmatter(path: string): SkillFrontmatter {
   if (match?.[1] === undefined) throw new Error(`${path}: no YAML frontmatter`);
   const parsed = frontmatterSchema.safeParse(parse(match[1]));
   if (!parsed.success) throw new Error(`${path}: ${z.prettifyError(parsed.error)}`);
+
   return parsed.data;
 }
