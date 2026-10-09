@@ -3,11 +3,15 @@
 #
 # Usage: share-gist.sh FILE SLUG
 #
-# SLUG names the use case (the piece, or the sorted piece names joined by "+"), so a re-run for the same pieces finds the gist it made before. The gist is identified by its description, `Setup prompt: SLUG`, and its file name, `SLUG-setup-prompt.md`, among the authenticated user's own secret gists. Found: the file's contents replace the gist's file. Not found: a new secret gist is created. Refuses (exit 2) when leak-check.sh finds anything in FILE, because a gist link can be forwarded to anyone. Needs `gh` logged in with the gist scope.
+# SLUG names the use case (the piece, or the sorted piece names joined by "+"), so a re-run for the same pieces finds the gist it made before. The gist is identified by its description, `Setup prompt: SLUG`, and its file name, `SLUG-setup-prompt.md`, among the authenticated user's own secret gists. Found: the file's contents replace the gist's file. Not found: a new secret gist is created. Refuses (exit 2) when SLUG has characters outside letters, digits and . _ + -, or when leak-check.sh finds anything in FILE, because a gist link can be forwarded to anyone. Needs `gh` logged in with the gist scope.
 set -euo pipefail
 
 file="${1:-}"; slug="${2:-}"
 [ -f "$file" ] && [ -n "$slug" ] || { echo "usage: share-gist.sh FILE SLUG" >&2; exit 2; }
+# The slug becomes part of a file name and of a jq filter below, so it is limited to characters that need no quoting in either.
+case "$slug" in
+  *[!A-Za-z0-9._+-]*) echo "refusing: SLUG may contain only letters, digits, and . _ + -" >&2; exit 2 ;;
+esac
 here="$(dirname "$0")"
 
 "$here/leak-check.sh" "$file" >&2 || { echo "refusing: leak-check.sh found something in $file; fix it before sharing" >&2; exit 2; }
@@ -15,8 +19,8 @@ here="$(dirname "$0")"
 description="Setup prompt: $slug"
 name="$slug-setup-prompt.md"
 
-# `gh api gists` lists the authenticated user's gists, secret ones included (public is false for them). Take the first match: a use case has one gist.
-id=$(gh api --paginate gists --jq ".[] | select(.public == false and .description == \"$description\" and (.files | has(\"$name\"))) | .id" | head -n 1)
+# `gh api gists` lists the authenticated user's gists, secret ones included (public is false for them). Take the first match: a use case has one gist. sed, not head, so the pipe is read to the end and gh is not killed by SIGPIPE under pipefail.
+id=$(gh api --paginate gists --jq ".[] | select(.public == false and .description == \"$description\" and (.files | has(\"$name\"))) | .id" | sed -n 1p)
 
 if [ -n "$id" ]; then
   gh gist edit "$id" --filename "$name" "$file" >&2

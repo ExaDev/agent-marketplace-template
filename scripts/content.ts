@@ -87,6 +87,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
         'workflow-globals.d.ts',
         'scripts/sync-plugin-version.ts',
         'scripts/sync-plugin-version.unit.test.ts',
+        'scripts/share-agent-setup.integration.test.ts',
         'scripts/validate-plugins.ts',
         'docs/authoring.md',
         'docs/cross-marketplace.md',
