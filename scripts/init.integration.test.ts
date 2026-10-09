@@ -73,13 +73,26 @@ const ciWorkflowSchema = z.looseObject({
   jobs: z.record(z.string(), z.looseObject({ if: z.string().optional(), name: z.string().optional(), needs: z.union([z.string(), z.array(z.string())]).optional() })),
 });
 
+const mergeStepSchema = z.looseObject({
+  name: z.string().optional(),
+  run: z.string().optional(),
+  uses: z.string().optional(),
+  with: z.looseObject({ 'merge-method': z.string(), 'required-check': z.string() }).optional(),
+});
+
+const mergeJobSchema = z.looseObject({
+  if: z.string(),
+  needs: z.string().optional(),
+  permissions: z.record(z.string(), z.string()),
+  steps: z.array(mergeStepSchema),
+});
+
 const mergeWorkflowSchema = z.looseObject({
-  on: z.looseObject({ workflow_run: z.looseObject({ workflows: z.array(z.string()) }) }),
-  jobs: z.looseObject({
-    merge: z.looseObject({
-      steps: z.array(z.looseObject({ with: z.looseObject({ 'merge-method': z.string(), 'required-check': z.string() }).optional() })),
-    }),
+  on: z.looseObject({
+    workflow_run: z.looseObject({ workflows: z.array(z.string()) }),
+    pull_request_target: z.looseObject({ types: z.array(z.string()) }),
   }),
+  jobs: z.looseObject({ authorise: mergeJobSchema, revoke: mergeJobSchema, merge: mergeJobSchema }),
 });
 
 /**
@@ -91,6 +104,26 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   const mergeText = readFileSync(join(root, '.github/workflows/merge-when-green.yml'), 'utf8');
   const merge = mergeWorkflowSchema.parse(parse(mergeText));
   assert.deepEqual(merge.on.workflow_run.workflows, [ci.name], 'the merge workflow runs when ci completes');
+  assert.ok(['labeled', 'synchronize'].every((type) => merge.on.pull_request_target.types.includes(type)), 'applying the label and pushing a commit both trigger the workflow');
+  assert.equal(merge.jobs.merge.needs, 'authorise', 'the merge waits for the authorisation job');
+  assert.equal(merge.jobs.authorise.permissions.statuses, 'write', 'the authorise job records the authorisation as a commit status');
+  assert.equal(merge.jobs.revoke.permissions['pull-requests'], 'write', 'the revoke job can remove the label');
+  assert.ok(merge.jobs.revoke.if.includes("github.event.action == 'synchronize'"), 'the label is removed on every push');
+  assert.ok(merge.jobs.merge.if.includes("github.event.action != 'synchronize'"), 'a push never starts a merge');
+  assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('.user.permissions.push') === true), 'the label authorises only when applied by someone with write access');
+  assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('HEAD_REPO') === true), 'a fork pull request is not authorised');
+  const mergeSteps = merge.jobs.merge.steps;
+  const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('AUTHORISED_CONTEXT') === true);
+  const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when-green@') === true);
+  assert.ok(verifyAt >= 0 && verifyAt < actionAt, 'the authorisation is verified before the action runs');
+  const jobs = { authorise: merge.jobs.authorise, revoke: merge.jobs.revoke, merge: merge.jobs.merge };
+  for (const [name, job] of Object.entries(jobs)) {
+    assert.ok(job.if.includes('!github.event.repository.is_template'), `${name} is skipped in a repository marked as a template`);
+    for (const step of job.steps) {
+      assert.ok(step.uses?.startsWith('actions/checkout') !== true, `${name} checks out no pull request code`);
+      assert.ok(step.run?.includes('${{') !== true, `${name} reaches no shell through an expression`);
+    }
+  }
   const inputs = merge.jobs.merge.steps.find((candidate) => candidate.with !== undefined)?.with;
   assert.ok(inputs, 'the merge step names a required check');
   const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === inputs['required-check']);
