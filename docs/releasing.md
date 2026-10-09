@@ -13,7 +13,7 @@ For each released plugin the tool:
 3. writes the plugin's `CHANGELOG.md`,
 4. commits those files and pushes the branch and the tag `<plugin>--v<version>`.
 
-Marketplace entries carry no `version`. Claude Code reads the version from `plugin.json` first, and setting it in both places draws a validate warning, so no root file needs syncing. `pnpm run check:versions` fails when a plugin's `package.json` and `plugin.json` disagree or when an entry sets a version. Because the version string is what tells Claude Code a plugin changed, a plugin that changes without a release is not picked up by people who installed it.
+Marketplace entries carry no `version`. Claude Code reads the version from `plugin.json` first, and setting it in both places draws a validate warning, so no root file needs syncing. `pnpm run lint` fails when a plugin's `plugin.json` version differs from its `package.json` or when an entry sets a version, and `pnpm run check:versions` fails when a plugin's `package.json` has no version or is not named for its directory. Because the version string is what tells Claude Code a plugin changed, a plugin that changes without a release is not picked up by people who installed it.
 
 ## Tags
 

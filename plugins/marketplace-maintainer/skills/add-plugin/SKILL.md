@@ -12,9 +12,9 @@ Add the plugin named in the arguments to the marketplace in the current checkout
 
    ```json
    {
+     "description": "<description from plugin.json>",
      "name": "<name>",
-     "source": "./plugins/<name>",
-     "description": "<description from plugin.json>"
+     "source": "./plugins/<name>"
    }
    ```
 
@@ -22,5 +22,5 @@ Add the plugin named in the arguments to the marketplace in the current checkout
    - `source` is the relative path `./plugins/<name>`, resolved from the marketplace root.
    - Never add a `version` to an entry. The plugin's own `plugin.json` is the single source of the version.
    - Never add a `skills` key. Skills are discovered from the plugin directory.
-4. Keep the file's existing formatting and the order of the other entries.
+4. Keep the file's existing formatting and the order of the other entries, and write the new entry's keys in alphabetical order as shown above. A marketplace linted with the shared ExaDev ESLint config sorts every object's keys alphabetically and fails on any other order, so an entry written this way passes unchanged.
 5. Run the `validate-marketplace` skill and fix anything it reports before finishing.

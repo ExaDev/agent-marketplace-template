@@ -22,12 +22,13 @@ Rules that apply to every plugin here:
 <!-- content:skills:start -->
 - Never add a `skills` key to a `plugin.json` or an entry. See [skills-cli.md](skills-cli.md).
 <!-- content:skills:end -->
+- Write `plugin.json`, `package.json` and the marketplace in any key order and run `pnpm run lint:fix`: the shared ESLint config rewrites them to one canonical layout with sorted keys, and `pnpm run lint` fails on anything else.
 
 ## Skills
 
 Example: `plugins/example-skills`.
 
-A skill is `skills/<name>/SKILL.md`. The frontmatter needs a `description`, which is what Claude matches against the task, and a `name`. It runs as `/<plugin>:<name>`. Supporting files sit beside it: a `references/` file the skill reads only when it needs it, a `scripts/` file it runs, or a file shared between skills reached by a relative path from the skill's own directory. `word-count` shows the first two and `house-style` the shared file.
+A skill is `skills/<name>/SKILL.md`. The frontmatter needs a `description`, which is what Claude matches against the task, and a `name` equal to the skill's directory. It runs as `/<plugin>:<name>`. Supporting files sit beside it: a `references/` file the skill reads only when it needs it, a `scripts/` file it runs, or a file shared between skills reached by a relative path from the skill's own directory. `word-count` shows the first two and `house-style` the shared file.
 
 Skill names must be unique across the repository, because the `skills` CLI silently drops a second skill with the same name. A skill that only works with its plugin's scripts or hooks is marked `metadata.internal: true` so the `skills` CLI does not list it. The same file serves Claude Code and the `skills` CLI, so do not copy a skill into a second place.
 

@@ -17,7 +17,7 @@ The steps below are the whole loop. Run them in order and the vocabulary will st
 
 1. Fork the repository on GitHub if you have no write access, otherwise skip this. Clone it and install the tooling with `pnpm install`.
 2. Update `main` and branch from it: `git switch main`, `git pull`, `git switch -c feat/my-change`.
-3. Make the change, then run `pnpm run validate`. It runs the checks CI runs.
+3. Make the change, then run `pnpm run validate`. It runs the checks CI runs: type-check, lint, the tests, the skills and version checks, the README table and plugin validation.
 4. Look at what you changed with `git status` and `git diff`.
 5. Stage files by name and commit (see below).
 6. Push the branch and open a pull request. `gh pr create --draft` opens it as a draft, which is right while CI is still running.
@@ -79,7 +79,7 @@ git push --force-with-lease
 [docs/authoring.md](docs/authoring.md) explains each component type and points at the example plugin to copy.
 <!-- content:claude:end -->
 In short: a plugin is a directory under `plugins/`, with a `package.json` (private, carrying the version), a `.claude-plugin/plugin.json`, its components, a README with a "Content owner" section, and an entry in `.claude-plugin/marketplace.json` whose `source` is `./plugins/<name>`.
-Do not set a `version` in the marketplace entry, do not add a `skills` key anywhere, and keep skill names unique across the repository. `pnpm run check:skills` and `pnpm run check:versions` enforce these.
+Do not set a `version` in the marketplace entry, do not add a `skills` key anywhere, give each skill a `name` equal to its directory, and keep skill names unique across the repository. `pnpm run lint` enforces these through the shared ESLint config, and `pnpm run check:skills` checks that the `skills` CLI finds and lists every skill. The manifests and `package.json` files are written in one canonical layout with sorted keys, so write them in any order and run `pnpm run lint:fix`.
 
 ## Before you ask for review
 
