@@ -11,7 +11,7 @@
     "@eslint/js": "10.0.1",
     "@eslint/json": "2.1.1",
     "@eslint/markdown": "8.0.3",
-    "@exadev/eslint-config": "2.36.0",
+    "@exadev/eslint-config": "2.36.2",
     "@exadev/semantic-release-workspace": "3.1.25",
     "@semantic-release/changelog": "7.0.0",
     "@semantic-release/commit-analyzer": "13.0.1",
