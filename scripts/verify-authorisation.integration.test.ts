@@ -25,6 +25,7 @@ interface Scenario {
   readonly hasMergeToken?: boolean;
   readonly admins?: readonly string[];
   readonly readOnly?: readonly string[];
+  readonly defaultBranch?: string;
 }
 
 /** A `gh` that answers every call the script makes from a scenario file, whatever flags it passes. */
@@ -33,6 +34,7 @@ target=""
 for arg in "$@"; do case "$arg" in repos/*) target="$arg" ;; esac; done
 case "$1 $2" in
   "pr view") jq -c .pr "$SCENARIO" ;;
+  "api repos/owner/repo") jq -c '{default_branch: .default_branch}' "$SCENARIO" ;;
   "api graphql") echo '{"data":{"repository":{"pullRequest":{"author":{"login":"author"},"latestOpinionatedReviews":{"nodes":[]}}}}}' ;;
   *)
     case "$target" in
@@ -56,6 +58,7 @@ function verify(scenario: Scenario): { readonly status: number | null; readonly 
     const base = scenario.base ?? 'main';
     const labeller = (scenario.labellers ?? ['maintainer']).at(-1) ?? '';
     const data = {
+      default_branch: scenario.defaultBranch ?? 'main',
       pr: { headRefOid: scenario.liveHead ?? HEAD, baseRefName: base },
       timeline: [{ event: 'commented' }, ...(scenario.labellers ?? ['maintainer']).map((login) => ({ event: 'labeled', label: { name: 'automerge' }, actor: { login } }))],
       statuses: [{ context: 'merge-when-green/authorised', state: 'success', target_url: scenario.statusUrl ?? `https://github.com/owner/repo/actions/runs/${RUN}` }],
@@ -112,6 +115,17 @@ void describe('verify-authorisation.sh', () => {
 
   void it('refuses a pull_request_target run whose workflow is not in the base branch history', () => {
     assert.equal(verify({ relation: 'diverged' }).status, 1);
+  });
+
+  void it('lets the bypass token merge only into the default branch', () => {
+    assert.equal(verify({ hasMergeToken: true, admins: ['maintainer'] }).status, 0);
+    const { status, stdout } = verify({ hasMergeToken: true, admins: ['maintainer'], base: 'staging' });
+    assert.equal(status, 1);
+    assert.match(stdout, /only merges into main/);
+  });
+
+  void it('lets the workflow token merge into another base', () => {
+    assert.equal(verify({ hasMergeToken: false, base: 'staging' }).status, 0);
   });
 
   void it('refuses when the person who applied the label no longer has write access', () => {
