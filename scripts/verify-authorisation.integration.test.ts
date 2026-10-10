@@ -12,6 +12,8 @@ const EXECUTABLE = 0o755;
 const HEAD = 'head-sha';
 const RUN = '4242';
 const WORKFLOW_PATH = '.github/workflows/merge-when-green.yml';
+/** The base branch commit GitHub records in a pull_request_target run's pull_requests list, which is where the workflow file was read from. */
+const BASE_SHA = 'workflow-sha';
 
 interface Scenario {
   readonly liveHead?: string;
@@ -20,6 +22,7 @@ interface Scenario {
   readonly statusUrl?: string;
   readonly run?: { readonly event: string; readonly path: string };
   readonly relation?: string;
+  readonly pullRequests?: readonly { readonly number: number; readonly head: { readonly sha: string }; readonly base: { readonly sha: string } }[];
   readonly jobName?: string;
   readonly jobConclusion?: string;
   readonly readOnly?: readonly string[];
@@ -55,8 +58,15 @@ function verify(scenario: Scenario): { readonly status: number | null; readonly 
       pr: { headRefOid: scenario.liveHead ?? HEAD, baseRefName: base },
       timeline: [{ event: 'commented' }, ...(scenario.labellers ?? ['maintainer']).map((login) => ({ event: 'labeled', label: { name: 'automerge' }, actor: { login } }))],
       statuses: [{ context: 'merge-when-green/authorised', state: 'success', target_url: scenario.statusUrl ?? `https://github.com/owner/repo/actions/runs/${RUN}` }],
-      runs: { [RUN]: { ...(scenario.run ?? { event: 'pull_request_target', path: WORKFLOW_PATH }), head_sha: 'workflow-sha' } },
-      compare: { 'workflow-sha': scenario.relation ?? 'ahead' },
+      // A real pull_request_target run reports the pull request's head commit as its own head_sha and the base commit only inside pull_requests.
+      runs: {
+        [RUN]: {
+          ...(scenario.run ?? { event: 'pull_request_target', path: WORKFLOW_PATH }),
+          head_sha: HEAD,
+          pull_requests: scenario.pullRequests ?? [{ number: 7, head: { sha: HEAD }, base: { sha: BASE_SHA } }],
+        },
+      },
+      compare: { [BASE_SHA]: scenario.relation ?? 'ahead' },
       jobs: { [RUN]: { jobs: [{ name: scenario.jobName ?? `authorise #7 sha=${HEAD} by=${labeller} base=${base}`, conclusion: scenario.jobConclusion ?? 'success' }] } },
     };
     writeFiles(dir, { 'bin/gh': FAKE_GH, 'scenario.json': data });
@@ -106,6 +116,12 @@ void describe('verify-authorisation.sh', () => {
 
   void it('refuses a pull_request_target run whose workflow is not in the base branch history', () => {
     assert.equal(verify({ relation: 'diverged' }).status, 1);
+  });
+
+  void it('refuses a run that is not recorded against this pull request and head', () => {
+    assert.equal(verify({ pullRequests: [{ number: 8, head: { sha: HEAD }, base: { sha: BASE_SHA } }] }).status, 1);
+    assert.equal(verify({ pullRequests: [{ number: 7, head: { sha: 'other-sha' }, base: { sha: BASE_SHA } }] }).status, 1);
+    assert.equal(verify({ pullRequests: [] }).status, 1);
   });
 
   void it('refuses when the person who applied the label no longer has write access', () => {

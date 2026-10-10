@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Decides whether the head commit of a labelled pull request was authorised by a run of this repository's merge-when-green workflow, for the pull request's current base, by the person who applied the label last. It fails with an error annotation otherwise.
 #
-# The authorisation is the successful `authorise` job of a merge-when-green run, whose job name is built from the pull request number, the head commit, the person who applied the label and the base branch. A commit status only points at that run: a workflow in a pull request can post statuses as github-actions[bot], so the status is never trusted, and the run is accepted only when it is a pull_request_target run of .github/workflows/merge-when-green.yml at a commit that is part of the base branch's history, which a pull request cannot add to without review.
+# The authorisation is the successful `authorise` job of a merge-when-green run, whose job name is built from the pull request number, the head commit, the person who applied the label and the base branch. A commit status only points at that run: a workflow in a pull request can post statuses as github-actions[bot], so the status is never trusted, and the run is accepted only when it is a pull_request_target run of .github/workflows/merge-when-green.yml for this pull request and head, whose workflow file came from a commit that is part of the base branch's history, which a pull request cannot add to without review. The run's own head_sha is the pull request's head commit, which its author controls, so the commit the workflow was read from is the base.sha that GitHub records for the pull request in the run's pull_requests list.
 #
 # Inputs (environment):
 #   GH_TOKEN             reads pull requests, timelines, statuses, runs and commits
@@ -45,7 +45,8 @@ run_ids=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses?per_pa
 for id in $run_ids; do
   run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")
   [ "$(jq -r '.event == "pull_request_target" and (.path | startswith(".github/workflows/merge-when-green.yml"))' <<<"$run")" = true ] || continue
-  run_sha=$(jq -r .head_sha <<<"$run")
+  run_sha=$(jq -r --argjson number "$NUMBER" --arg head "$HEAD_SHA" '[.pull_requests[]? | select(.number == $number and .head.sha == $head)] | first | .base.sha // empty' <<<"$run")
+  [ -n "$run_sha" ] || continue
   relation=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${run_sha}...${base}" | jq -r .status)
   case "$relation" in identical | ahead) ;; *) continue ;; esac
   if [ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" | jq -r --arg name "$expected" 'any(.jobs[]; .name == $name and .conclusion == "success")')" = true ]; then
