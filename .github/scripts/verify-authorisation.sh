@@ -29,6 +29,12 @@ if [ "$(jq -r .headRefOid <<<"$pr")" != "$HEAD_SHA" ]; then
 fi
 base=$(jq -r .baseRefName <<<"$pr")
 
+# No operation can pin the base atomically in a merge, so a token that can bypass review only ever merges into the default branch. A retarget after this check can then only move the pull request away from the default branch, and one that arrives at it from another base never had an authorisation.
+if [ "$HAS_MERGE_TOKEN" = true ]; then
+  default_branch=$(gh api "repos/${GITHUB_REPOSITORY}" | jq -r .default_branch)
+  [ "$base" = "$default_branch" ] || fail "the merge token can bypass required review, so it only merges into ${default_branch} and this pull request targets ${base}"
+fi
+
 # The last person to apply the label, from the timeline, which pull request code cannot write as another user.
 labeller=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/issues/${NUMBER}/timeline" \
   | jq -r --arg label "$LABEL" '[.[][] | select(.event == "labeled" and .label.name == $label)] | last | .actor.login // empty')
