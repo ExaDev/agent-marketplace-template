@@ -1,0 +1,11 @@
+{
+  "author": {
+    "name": "ExaDev"
+  },
+  "description": "Throwaway plugin with one skill, used to exercise the contribution route.",
+  "homepage": "https://github.com/ExaDev/agent-marketplace-template",
+  "license": "UNLICENSED",
+  "name": "share-route-check",
+  "repository": "https://github.com/ExaDev/agent-marketplace-template",
+  "version": "0.0.0"
+}
