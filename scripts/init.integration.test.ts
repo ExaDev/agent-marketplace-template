@@ -97,6 +97,10 @@ const mergeWorkflowSchema = z.looseObject({
   jobs: z.looseObject({ authorise: mergeJobSchema, revoke: mergeJobSchema, merge: mergeJobSchema }),
 });
 
+function authoriseScriptAll(merge: z.infer<typeof mergeWorkflowSchema>): string {
+  return merge.jobs.authorise.steps.map((step) => step.run ?? '').join('\n');
+}
+
 /**
  * The merge-when-green workflow is core content, so every content set keeps it. It must wait for a job that
  * ci really defines, aggregating `validate`, and run when that ci workflow completes.
@@ -113,6 +117,7 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   assert.equal(merge.jobs.authorise.name, 'authorise #${{ github.event.pull_request.number }} sha=${{ github.event.pull_request.head.sha }} by=${{ github.event.sender.login }} base=${{ github.event.pull_request.base.ref }}', 'the authorise job name records the pull request, head, person and base that verify-authorisation.sh looks for');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('"$live_base" != "$EVENT_BASE"') === true), 'the authorisation is refused when the base moved after the label');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('for $live_base') === true), 'the status description records the base');
+  assert.ok(authoriseScriptAll(merge).includes('.default_branch') && authoriseScriptAll(merge).includes('"$live_base" != "$default_branch"'), 'the bypass token is only authorised against the default branch');
   assert.equal(merge.jobs.merge.needs, 'authorise', 'the merge waits for the authorisation job');
   assert.equal(merge.jobs.authorise.permissions.statuses, 'write', 'the authorise job records the authorisation as a commit status');
   assert.equal(merge.jobs.revoke.permissions['pull-requests'], 'write', 'the revoke job can remove the label');
@@ -128,7 +133,7 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   const verifyCall = 'bash .github/scripts/verify-authorisation.sh';
   assert.ok(merge.jobs.merge.steps.some((step) => step.run?.includes(verifyCall) === true), 'the merge job verifies the authorisation with the shared script');
   const verify = readFileSync(join(root, '.github/scripts/verify-authorisation.sh'), 'utf8');
-  for (const needle of ['baseRefName', 'expected="authorise #${NUMBER} sha=${HEAD_SHA} by=${labeller} base=${base}"', 'select(.event == "labeled"', '"pull_request_target"', 'merge-when-green.yml', '/compare/', '"$HAS_MERGE_TOKEN" = true', 'review-authority.sh']) {
+  for (const needle of ['baseRefName', '.default_branch', '"$base" = "$default_branch"', 'expected="authorise #${NUMBER} sha=${HEAD_SHA} by=${labeller} base=${base}"', 'select(.event == "labeled"', '"pull_request_target"', 'merge-when-green.yml', '/compare/', '"$HAS_MERGE_TOKEN" = true', 'review-authority.sh']) {
     assert.ok(verify.includes(needle), `the authorisation is checked against the run, base and labeller (${needle})`);
   }
   assert.ok(!verify.includes('latestOpinionatedReviews') && !authoriseScript.includes('latestOpinionatedReviews'), 'the review logic lives only in the shared reader');
@@ -184,6 +189,7 @@ function assertMergeDocs(root: string, claude: boolean): void {
   assert.ok(rulesets.includes('also requires, before it records the status, an approval of the current head'), 'the docs explain what the bypass token changes');
   assert.ok(rulesets.includes('reads them again just before the action runs'), 'the docs say the reviews are read again at merge time');
   assert.ok(rulesets.includes('What invalidates an authorisation: a push (new head commit), a change of the base branch'), 'the docs list what invalidates an authorisation');
+  assert.ok(rulesets.includes('it only ever merges into the default branch'), 'the docs say the bypass token only merges into the default branch');
   assert.equal(rulesets.includes('The dispatched run also starts the `release` job'), claude, 'the release job paragraph belongs to the claude content type only');
   assert.ok(readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8').includes('docs/rulesets.md#merging-a-labelled-pull-request'), 'CONTRIBUTING.md points at the merge flow');
 }
