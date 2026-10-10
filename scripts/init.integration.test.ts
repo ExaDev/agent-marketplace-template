@@ -77,7 +77,7 @@ const mergeStepSchema = z.looseObject({
   name: z.string().optional(),
   run: z.string().optional(),
   uses: z.string().optional(),
-  with: z.looseObject({ 'merge-method': z.string(), 'required-check': z.string() }).optional(),
+  with: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
 const mergeJobSchema = z.looseObject({
@@ -114,11 +114,20 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('.user.permissions.push') === true), 'the label authorises only when applied by someone with write access');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('HEAD_REPO') === true), 'a fork pull request is not authorised');
   assert.equal(merge.jobs.authorise.env?.HAS_MERGE_TOKEN, "${{ secrets.MERGE_TOKEN != '' }}", 'the authorise job learns whether a bypass-capable token is configured without exposing it');
+  const readerCall = 'bash .github/scripts/review-authority.sh';
   const authoriseScript = merge.jobs.authorise.steps.map((step) => step.run ?? '').join('\n');
-  for (const needle of ['"$HAS_MERGE_TOKEN" = true', '.user.permissions.admin', 'latestOpinionatedReviews', 'state == "APPROVED"', 'commit.oid == $head', '.author.login != $pr.author.login', 'CHANGES_REQUESTED']) {
-    assert.ok(authoriseScript.includes(needle), `with the bypass token the label needs an independent approval of the current head or an admin (${needle})`);
+  assert.ok(authoriseScript.includes('"$HAS_MERGE_TOKEN" = true'), 'the approval is only required when a bypass-capable token is configured');
+  assert.ok(authoriseScript.includes(readerCall), 'the authorise job reads the reviews with the shared reader');
+  assert.ok(authoriseScript.indexOf(readerCall) < authoriseScript.indexOf('/statuses/'), 'the approval is checked before the authorisation is recorded');
+  const verifyScript = merge.jobs.merge.steps.map((step) => step.run ?? '').find((run) => run.includes('AUTHORISED_CONTEXT')) ?? '';
+  assert.ok(verifyScript.includes('"$HAS_MERGE_TOKEN" = true'), 'the merge job re-reads the reviews only when a bypass-capable token is configured');
+  assert.ok(verifyScript.includes(readerCall), 'the merge job reads the reviews again with the same shared reader');
+  assert.ok(verifyScript.includes('ltrimstr("Authorised by ")'), 'the merge job checks the labeller recorded in the status');
+  assert.ok(!`${authoriseScript}\n${verifyScript}`.includes('latestOpinionatedReviews'), 'the review logic lives only in the shared reader');
+  const reader = readFileSync(join(root, '.github/scripts/review-authority.sh'), 'utf8');
+  for (const needle of ['.user.permissions.admin', 'latestOpinionatedReviews', 'state == "APPROVED"', '.commit.oid == $head', '.author.login != $pr.author.login', 'CHANGES_REQUESTED']) {
+    assert.ok(reader.includes(needle), `the shared reader needs an independent approval of the current head or an admin (${needle})`);
   }
-  assert.ok(authoriseScript.indexOf('latestOpinionatedReviews') < authoriseScript.indexOf('/statuses/'), 'the approval is checked before the authorisation is recorded');
   const mergeSteps = merge.jobs.merge.steps;
   const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('AUTHORISED_CONTEXT') === true);
   const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when-green@') === true);
@@ -127,11 +136,14 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   for (const [name, job] of Object.entries(jobs)) {
     assert.ok(job.if.includes('!github.event.repository.is_template'), `${name} is skipped in a repository marked as a template`);
     for (const step of job.steps) {
-      assert.ok(step.uses?.startsWith('actions/checkout') !== true, `${name} checks out no pull request code`);
+      if (step.uses?.startsWith('actions/checkout') === true) {
+        assert.notEqual(name, 'revoke', 'revoke checks out nothing');
+        assert.deepEqual(step.with, { ref: '${{ github.event.repository.default_branch }}', 'sparse-checkout': '.github/scripts', 'persist-credentials': false }, `${name} fetches only the scripts from the default branch, never the pull request`);
+      }
       assert.ok(step.run?.includes('${{') !== true, `${name} reaches no shell through an expression`);
     }
   }
-  const inputs = merge.jobs.merge.steps.find((candidate) => candidate.with !== undefined)?.with;
+  const inputs = merge.jobs.merge.steps.find((candidate) => candidate.uses?.startsWith('ExaDev/merge-when-green@') === true)?.with;
   assert.ok(inputs, 'the merge step names a required check');
   const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === inputs['required-check']);
   assert.equal(aggregates.length, 1, 'the required check is exactly one job of ci');
@@ -162,6 +174,7 @@ function assertMergeDocs(root: string, claude: boolean): void {
   assert.ok(rulesets.includes('`MERGE_TOKEN` repository secret is an optional override'), 'the merge secret is documented as optional');
   assert.ok(rulesets.includes('so no secret is needed'), 'the docs do not ask for a secret');
   assert.ok(rulesets.includes('also requires, before it records the status, an approval of the current head'), 'the docs explain what the bypass token changes');
+  assert.ok(rulesets.includes('reads them again just before the action runs'), 'the docs say the reviews are read again at merge time');
   assert.equal(rulesets.includes('The dispatched run also starts the `release` job'), claude, 'the release job paragraph belongs to the claude content type only');
   assert.ok(readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8').includes('docs/rulesets.md#merging-a-labelled-pull-request'), 'CONTRIBUTING.md points at the merge flow');
 }
@@ -189,6 +202,7 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   assert.equal(/^ {2}release:$/m.test(ci), claude, 'the release job belongs to the claude content type only');
   assert.equal(ci.includes('content:'), false, 'no content marker may survive init');
   expectPresent('.github/workflows/merge-when-green.yml', true);
+  expectPresent('.github/scripts/review-authority.sh', true);
   assertMergeWorkflow(root, claude);
   assertMergeDocs(root, claude);
   for (const path of ['skills/word-count/SKILL.md', 'skills/house-style/SKILL.md', 'shared/style-guide.md']) expectPresent(path, !claude);
