@@ -53,6 +53,7 @@ export const CONTENT_MANIFEST: ContentManifest = {
         'scripts/generate-readme-table.ts',
         'scripts/lib',
         'scripts/review-authority.integration.test.ts',
+        'scripts/verify-authorisation.integration.test.ts',
         '.github/scripts',
       ],
       devDependencies: [
