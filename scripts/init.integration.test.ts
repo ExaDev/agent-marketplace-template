@@ -83,6 +83,7 @@ const mergeStepSchema = z.looseObject({
 const mergeJobSchema = z.looseObject({
   if: z.string(),
   needs: z.string().optional(),
+  env: z.record(z.string(), z.string()).optional(),
   permissions: z.record(z.string(), z.string()),
   steps: z.array(mergeStepSchema),
 });
@@ -112,6 +113,12 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   assert.ok(merge.jobs.merge.if.includes("github.event.action != 'synchronize'"), 'a push never starts a merge');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('.user.permissions.push') === true), 'the label authorises only when applied by someone with write access');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('HEAD_REPO') === true), 'a fork pull request is not authorised');
+  assert.equal(merge.jobs.authorise.env?.HAS_MERGE_TOKEN, "${{ secrets.MERGE_TOKEN != '' }}", 'the authorise job learns whether a bypass-capable token is configured without exposing it');
+  const authoriseScript = merge.jobs.authorise.steps.map((step) => step.run ?? '').join('\n');
+  for (const needle of ['"$HAS_MERGE_TOKEN" = true', '.user.permissions.admin', 'latestOpinionatedReviews', 'state == "APPROVED"', 'commit.oid == $head', '.author.login != $pr.author.login', 'CHANGES_REQUESTED']) {
+    assert.ok(authoriseScript.includes(needle), `with the bypass token the label needs an independent approval of the current head or an admin (${needle})`);
+  }
+  assert.ok(authoriseScript.indexOf('latestOpinionatedReviews') < authoriseScript.indexOf('/statuses/'), 'the approval is checked before the authorisation is recorded');
   const mergeSteps = merge.jobs.merge.steps;
   const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('AUTHORISED_CONTEXT') === true);
   const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when-green@') === true);
@@ -154,6 +161,7 @@ function assertMergeDocs(root: string, claude: boolean): void {
   assert.ok(rulesets.includes('## Merging a labelled pull request'), 'the merge flow is documented');
   assert.ok(rulesets.includes('`MERGE_TOKEN` repository secret is an optional override'), 'the merge secret is documented as optional');
   assert.ok(rulesets.includes('so no secret is needed'), 'the docs do not ask for a secret');
+  assert.ok(rulesets.includes('also requires, before it records the status, an approval of the current head'), 'the docs explain what the bypass token changes');
   assert.equal(rulesets.includes('The dispatched run also starts the `release` job'), claude, 'the release job paragraph belongs to the claude content type only');
   assert.ok(readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8').includes('docs/rulesets.md#merging-a-labelled-pull-request'), 'CONTRIBUTING.md points at the merge flow');
 }
