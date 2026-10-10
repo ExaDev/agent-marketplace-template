@@ -82,6 +82,11 @@
       "description": "Contribute a skill, agent, hook or other piece of your Claude Code setup to your own marketplace or to someone else's, or share it directly as a setup prompt.",
       "name": "share-agent-setup",
       "source": "./plugins/share-agent-setup"
+    },
+    {
+      "description": "Throwaway plugin with one skill, used to exercise the contribution route.",
+      "name": "share-route-check",
+      "source": "./plugins/share-route-check"
     }
   ]
 }
