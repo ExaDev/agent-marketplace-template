@@ -2,7 +2,7 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# A label authorises one head commit on one base branch, as applied by one person with write access. The authorise job records that as its own name, the merge job refuses a labelled pull request unless a successful authorise run of this workflow, at a commit of the base branch, names the current head, the current base and the person who applied the label last (verify-authorisation.sh; a commit status only points at the run, because workflows in a pull request can post statuses), and the revoke job removes the label when the head or base changes. Fork pull requests are never authorised. No job runs pull request code: the merge job fetches only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
+# A label authorises one head commit on one base branch, as applied by one person with write access. The authorise job records that as its own name, the merge job refuses a labelled pull request unless a successful authorise run of this workflow, at a commit of the base branch, names the current head, the current base and the person who applied the label last (verify-authorisation.sh; a commit status only points at the run, because workflows in a pull request can post statuses), the action is then made to require a check run that only the verifying step of that run records, so a label applied after the verification cannot be merged unchecked, and the revoke job removes the label when the head or base changes. Fork pull requests are never authorised. No job runs pull request code: the merge job fetches only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
 #
 # The merge is made with the workflow token, which GitHub holds to the repository's rulesets at the moment of the merge: required reviews, up-to-date branches, required checks and a merge queue are enforced there and not repeated here, so a repository whose ruleset needs a review or a bypass actor refuses the merge and that pull request is merged by hand. GitHub does not start workflows from a push made with the workflow token, so after a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits. merge-when reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
 
@@ -109,10 +109,10 @@ jobs:
     concurrency:
       group: merge-when-green-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
       cancel-in-progress: false
-    # contents and pull-requests write let the workflow token merge, actions write lets it dispatch ci afterwards, checks read lets the action see the required check, and statuses read lets it see the authorisation.
+    # contents and pull-requests write let the workflow token merge, actions write lets it dispatch ci afterwards, checks write lets the verification step record which head commit it cleared and the action see that and the required check, and statuses read lets the script see the authorisation.
     permissions:
       actions: write
-      checks: read
+      checks: write
       contents: write
       pull-requests: write
       statuses: read
@@ -132,26 +132,34 @@ jobs:
         run: |
           numbers=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '[.[] | select(.state == "open") | .number] | join(" ")')
           echo "numbers=${numbers}" >> "$GITHUB_OUTPUT"
-      # The action merges any labelled pull request whose checks pass, so a labelled one whose head and base were never authorised by this workflow must stop the run before it. The script checks the authorising run, not the commit status.
+      # The action merges any labelled pull request whose checks pass, so a labelled one whose head and base were never authorised by this workflow must stop the run before it. The script checks the authorising run, not the commit status. The action reads the label itself some seconds later, so a label applied in between would be merged unchecked; the step therefore records the head commit it cleared as a check run named for this run and attempt, and the action requires that check. A pull request labelled after this step has no such check and is left for its own run.
       - name: Require the labelled head commit to be authorised
         env:
           NUMBERS: ${{ steps.open.outputs.numbers }}
+          CLEARED_CHECK: merge-when-green cleared ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           failed=0
+          cleared=0
           for number in $NUMBERS; do
             labels=$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]')
             [ "$(jq -r --arg label "$LABEL" 'index($label) != null' <<<"$labels")" = true ] || continue
-            if ! NUMBER="$number" bash .github/scripts/verify-authorisation.sh; then
+            if NUMBER="$number" bash .github/scripts/verify-authorisation.sh; then
+              cleared=1
+            else
               failed=1
             fi
           done
-          exit "$failed"
+          [ "$failed" = 0 ] || exit 1
+          if [ "$cleared" = 1 ]; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" -f name="$CLEARED_CHECK" -f head_sha="$HEAD_SHA" -f status=completed -f conclusion=success
+          fi
       # The conditions are the ones ExaDev/merge-when-green fixes, written out so the action that runs is pinned: that wrapper calls this action by a moving tag, which no pin on the wrapper would cover.
       - uses: ExaDev/merge-when@4f3beb39712691c0d7f29ae5295b335fbf4f0cfe # v1.0.1
         with:
           when: |
             label: automerge
             check: Required checks
+            check: merge-when-green cleared ${{ github.run_id }}-${{ github.run_attempt }}
             not-draft
             threads-resolved
           merge-method: rebase
