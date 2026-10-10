@@ -52,6 +52,8 @@ export const CONTENT_MANIFEST: ContentManifest = {
         'scripts/check-ci-skip-tokens.integration.test.ts',
         'scripts/generate-readme-table.ts',
         'scripts/lib',
+        'scripts/review-authority.integration.test.ts',
+        '.github/scripts',
       ],
       devDependencies: [
         '@commitlint/cli',
