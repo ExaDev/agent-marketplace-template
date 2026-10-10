@@ -23,8 +23,6 @@ export default defineConfig(
     // Scripts a plugin ships run under Node, outside this repository's TypeScript build.
     files: ['plugins/**/*.{js,mjs}'],
     languageOptions: { globals: globals.node },
-    // Plain JavaScript has no other place for its types than JSDoc `{type}` annotations, which tsdoc/syntax and jsdoc/no-types forbid because they assume TypeScript source. The type-aware rules still need those annotations to see anything but `any`. Remove this override once https://github.com/ExaDev/eslint-config/issues/125 (scope tsdoc/syntax and jsdoc/no-types to TypeScript files) ships.
-    rules: { 'tsdoc/syntax': 'off', 'jsdoc/no-types': 'off' },
   },
   {
     // A workflow script is the body of an async function the runtime calls, so its API arrives as globals declared in workflow-globals.d.ts.
