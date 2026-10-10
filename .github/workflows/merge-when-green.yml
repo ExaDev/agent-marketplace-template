@@ -2,7 +2,7 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# A label authorises one head commit. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then, when the merge uses MERGE_TOKEN, which can bypass a ruleset, requires an approval of that head from another writer unless an admin applied the label (the merge job reads the reviews again with the same script, because an approval can be withdrawn later), and records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request whose head has no such status, so a commit pushed after the label can never be merged on the strength of the earlier one; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself is pinned by merge-when-green to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. No job checks out or runs pull request code, which is what makes the pull_request_target trigger safe: the authorise and merge jobs fetch only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
+# A label authorises one head commit on one base branch, as applied by one person. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then, when the merge uses MERGE_TOKEN, which can bypass a ruleset, requires an approval of that head from another writer unless an admin applied the label (the merge job reads the reviews again with the same script, because an approval can be withdrawn later), and records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request unless a successful authorise run of this workflow, at a commit of the base branch, names that head commit, base branch and labeller (verify-authorisation.sh; a commit status only points at the run, because workflows in a pull request can post statuses), so a commit pushed after the label, or a changed base, can never be merged on the strength of the earlier label; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself is pinned by merge-when-green to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. No job checks out or runs pull request code, which is what makes the pull_request_target trigger safe: the authorise and merge jobs fetch only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
 #
 # The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
 
@@ -11,7 +11,7 @@ on:
     workflows: [ci]
     types: [completed]
   pull_request_target:
-    types: [labeled, ready_for_review, synchronize]
+    types: [labeled, ready_for_review, synchronize, reopened, converted_to_draft, edited]
 
 permissions:
   contents: read
@@ -23,6 +23,8 @@ env:
 jobs:
   # Runs only when the label is applied. Authorisation is a commit status keyed by the head sha, so it cannot carry over to a later commit and needs no ordering of events.
   authorise:
+    # The job name carries what was authorised: the run is the record that verify-authorisation.sh looks for, so the format must match that script.
+    name: "authorise #${{ github.event.pull_request.number }} sha=${{ github.event.pull_request.head.sha }} by=${{ github.event.sender.login }} base=${{ github.event.pull_request.base.ref }}"
     # A repository marked as a GitHub template has no merge to make and can use GitHub's own auto-merge, so the job is skipped there.
     if: >-
       !github.event.repository.is_template
@@ -44,6 +46,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       NUMBER: ${{ github.event.pull_request.number }}
       EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+      EVENT_BASE: ${{ github.event.pull_request.base.ref }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
       ACTOR: ${{ github.event.sender.login }}
       # Whether the merge uses the repository secret, evaluated here so the secret itself is never compared or exposed.
@@ -62,9 +65,11 @@ jobs:
             echo "::error::Pull request $NUMBER comes from a fork, so it is not authorised for automatic merging; merge it by hand."
             exit 1
           fi
-          live=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}" --jq .head.sha)
-          if [ "$live" != "$EVENT_HEAD" ]; then
-            echo "::error::Pull request $NUMBER moved from $EVENT_HEAD to $live after the label was applied; apply it again to the commit you reviewed."
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}")
+          live=$(jq -r .head.sha <<<"$current")
+          live_base=$(jq -r .base.ref <<<"$current")
+          if [ "$live" != "$EVENT_HEAD" ] || [ "$live_base" != "$EVENT_BASE" ]; then
+            echo "::error::Pull request $NUMBER moved from $EVENT_HEAD on $EVENT_BASE to $live on $live_base after the label was applied; apply it again to what you reviewed."
             exit 1
           fi
           permission=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission")
@@ -76,7 +81,7 @@ jobs:
           if [ "$HAS_MERGE_TOKEN" = true ]; then
             LABELLER="$ACTOR" HEAD_SHA="$live" bash .github/scripts/review-authority.sh
           fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${live}" -f state=success -f context="$AUTHORISED_CONTEXT" -f description="Authorised by $ACTOR"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${live}" -f state=success -f context="$AUTHORISED_CONTEXT" -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" -f description="Authorised by $ACTOR for $live_base"
       - name: Remove a label that authorised nothing
         if: ${{ failure() }}
         run: gh pr edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$LABEL"
@@ -86,7 +91,7 @@ jobs:
     if: >-
       !github.event.repository.is_template
       && github.event_name == 'pull_request_target'
-      && github.event.action == 'synchronize'
+      && (github.event.action == 'synchronize' || github.event.action == 'reopened' || github.event.action == 'converted_to_draft' || (github.event.action == 'edited' && github.event.changes.base != null))
       && contains(github.event.pull_request.labels.*.name, 'automerge')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -111,7 +116,7 @@ jobs:
       && needs.authorise.result != 'failure'
       && (
         (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success')
-        || (github.event_name == 'pull_request_target' && github.event.action != 'synchronize' && contains(github.event.pull_request.labels.*.name, 'automerge'))
+        || (github.event_name == 'pull_request_target' && (github.event.action == 'labeled' || github.event.action == 'ready_for_review') && contains(github.event.pull_request.labels.*.name, 'automerge'))
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -143,7 +148,7 @@ jobs:
         run: |
           numbers=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '[.[] | select(.state == "open") | .number] | join(" ")')
           echo "numbers=${numbers}" >> "$GITHUB_OUTPUT"
-      # The action merges any labelled pull request whose checks pass, so a labelled one whose head was never authorised must stop the run before it. Only the workflow's own status counts. When the merge token can bypass required review, the reviews are read again here, because an approval can be withdrawn after the label was applied; the labeller recorded in the status is the one checked for admin rights.
+      # The action merges any labelled pull request whose checks pass, so a labelled one whose head and base were never authorised by this workflow must stop the run before it. The script checks the authorising run, not the commit status, and reads the reviews again when the merge token can bypass required review.
       - name: Require the labelled head commit to be authorised
         env:
           NUMBERS: ${{ steps.open.outputs.numbers }}
@@ -152,18 +157,8 @@ jobs:
           for number in $NUMBERS; do
             labels=$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]')
             [ "$(jq -r --arg label "$LABEL" 'index($label) != null' <<<"$labels")" = true ] || continue
-            statuses=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses?per_page=100")
-            authorised=$(jq -c --arg context "$AUTHORISED_CONTEXT" '[.[] | select(.context == $context and .creator.login == "github-actions[bot]")] | first // {}' <<<"$statuses")
-            if [ "$(jq -r '.state // "none"' <<<"$authorised")" != success ]; then
-              echo "::error::Pull request $number is labelled but $HEAD_SHA was never authorised; remove the label and apply it again to the commit you reviewed."
+            if ! NUMBER="$number" bash .github/scripts/verify-authorisation.sh; then
               failed=1
-              continue
-            fi
-            if [ "$HAS_MERGE_TOKEN" = true ]; then
-              labeller=$(jq -r '.description | ltrimstr("Authorised by ")' <<<"$authorised")
-              if ! NUMBER="$number" LABELLER="$labeller" bash .github/scripts/review-authority.sh; then
-                failed=1
-              fi
             fi
           done
           exit "$failed"
