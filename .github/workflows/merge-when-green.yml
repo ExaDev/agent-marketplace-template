@@ -2,9 +2,9 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# A label authorises one head commit on one base branch, as applied by one person; when MERGE_TOKEN can bypass review, only the default branch can be that base, because a merge cannot pin its base and a retarget after verification can then only move a pull request away from the default branch. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then, when the merge uses MERGE_TOKEN, which can bypass a ruleset, requires an approval of that head from another writer unless an admin applied the label (the merge job reads the reviews again with the same script, because an approval can be withdrawn later), and records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request unless a successful authorise run of this workflow, at a commit of the base branch, names that head commit, base branch and labeller (verify-authorisation.sh; a commit status only points at the run, because workflows in a pull request can post statuses), so a commit pushed after the label, or a changed base, can never be merged on the strength of the earlier label; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself, made by ExaDev/merge-when pinned by commit, is pinned to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. No job checks out or runs pull request code, which is what makes the pull_request_target trigger safe: the authorise and merge jobs fetch only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
+# A label authorises one head commit on one base branch, as applied by one person with write access. The authorise job records that as its own name, the merge job refuses a labelled pull request unless a successful authorise run of this workflow, at a commit of the base branch, names the current head, the current base and the person who applied the label last (verify-authorisation.sh; a commit status only points at the run, because workflows in a pull request can post statuses), and the revoke job removes the label when the head or base changes. Fork pull requests are never authorised. No job runs pull request code: the merge job fetches only .github/scripts from the default branch, and every value taken from the event reaches a shell through an environment variable.
 #
-# The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
+# The merge is made with the workflow token, which GitHub holds to the repository's rulesets at the moment of the merge: required reviews, up-to-date branches, required checks and a merge queue are enforced there and not repeated here, so a repository whose ruleset needs a review or a bypass actor refuses the merge and that pull request is merged by hand. GitHub does not start workflows from a push made with the workflow token, so after a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits. merge-when reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
 
 on:
   workflow_run:
@@ -37,9 +37,8 @@ jobs:
     concurrency:
       group: merge-when-green-label-${{ github.event.pull_request.number }}
       cancel-in-progress: false
-    # contents read fetches the review reader, pull-requests write removes the label again when nothing was authorised, statuses write records the authorisation.
+    # pull-requests write removes the label again when nothing was authorised, statuses write records the authorisation.
     permissions:
-      contents: read
       pull-requests: write
       statuses: write
     env:
@@ -49,16 +48,7 @@ jobs:
       EVENT_BASE: ${{ github.event.pull_request.base.ref }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
       ACTOR: ${{ github.event.sender.login }}
-      # Whether the merge uses the repository secret, evaluated here so the secret itself is never compared or exposed.
-      HAS_MERGE_TOKEN: ${{ secrets.MERGE_TOKEN != '' }}
     steps:
-      # Only the review reader is fetched, from the default branch and never from the pull request, so no pull request code runs.
-      - name: Fetch the review reader from the default branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: .github/scripts
-          persist-credentials: false
       - name: Authorise the head commit
         run: |
           if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
@@ -72,22 +62,10 @@ jobs:
             echo "::error::Pull request $NUMBER moved from $EVENT_HEAD on $EVENT_BASE to $live on $live_base after the label was applied; apply it again to what you reviewed."
             exit 1
           fi
-          # No operation can pin the base atomically in a merge, so the token that can bypass review only ever merges into the default branch: a retarget after verification can then only move the pull request away from it, and a pull request cannot be authorised against the default branch from another base.
-          if [ "$HAS_MERGE_TOKEN" = true ]; then
-            default_branch=$(gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch)
-            if [ "$live_base" != "$default_branch" ]; then
-              echo "::error::The merge token can bypass required review, so it only merges into $default_branch and pull request $NUMBER targets $live_base; merge it by hand."
-              exit 1
-            fi
-          fi
           permission=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission")
           if [ "$(jq -r .user.permissions.push <<<"$permission")" != true ]; then
             echo "::error::$ACTOR cannot write to this repository, so the label does not authorise a merge."
             exit 1
-          fi
-          # A bypass identity merges past required review, so then the head also needs an independent approval, unless an admin applied the label.
-          if [ "$HAS_MERGE_TOKEN" = true ]; then
-            LABELLER="$ACTOR" HEAD_SHA="$live" bash .github/scripts/review-authority.sh
           fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${live}" -f state=success -f context="$AUTHORISED_CONTEXT" -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" -f description="Authorised by $ACTOR for $live_base"
       - name: Remove a label that authorised nothing
@@ -131,7 +109,7 @@ jobs:
     concurrency:
       group: merge-when-green-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
       cancel-in-progress: false
-    # contents and pull-requests write let the workflow token merge, actions write lets it dispatch ci afterwards, and statuses read lets it see the authorisation.
+    # contents and pull-requests write let the workflow token merge, actions write lets it dispatch ci afterwards, checks read lets the action see the required check, and statuses read lets it see the authorisation.
     permissions:
       actions: write
       checks: read
@@ -141,11 +119,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
-      # Whether the merge uses the repository secret, evaluated here so the secret itself is never compared or exposed.
-      HAS_MERGE_TOKEN: ${{ secrets.MERGE_TOKEN != '' }}
     steps:
-      # Only the review reader is fetched, from the default branch and never from the pull request, so no pull request code runs.
-      - name: Fetch the review reader from the default branch
+      # Only the verification script is fetched, from the default branch and never from the pull request, so no pull request code runs.
+      - name: Fetch the verification script from the default branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -156,7 +132,7 @@ jobs:
         run: |
           numbers=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '[.[] | select(.state == "open") | .number] | join(" ")')
           echo "numbers=${numbers}" >> "$GITHUB_OUTPUT"
-      # The action merges any labelled pull request whose checks pass, so a labelled one whose head and base were never authorised by this workflow must stop the run before it. The script checks the authorising run, not the commit status, and reads the reviews again when the merge token can bypass required review.
+      # The action merges any labelled pull request whose checks pass, so a labelled one whose head and base were never authorised by this workflow must stop the run before it. The script checks the authorising run, not the commit status.
       - name: Require the labelled head commit to be authorised
         env:
           NUMBERS: ${{ steps.open.outputs.numbers }}
@@ -179,10 +155,10 @@ jobs:
             not-draft
             threads-resolved
           merge-method: rebase
-          merge-token: ${{ secrets.MERGE_TOKEN || github.token }}
+          merge-token: ${{ github.token }}
       # The workflow token's push starts no workflow run, so ci is started by hand once a merge has happened.
       - name: Start ci on the default branch after a merge
-        if: ${{ env.HAS_MERGE_TOKEN == 'false' && steps.open.outputs.numbers != '' }}
+        if: ${{ steps.open.outputs.numbers != '' }}
         env:
           NUMBERS: ${{ steps.open.outputs.numbers }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
