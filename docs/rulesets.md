@@ -80,7 +80,7 @@ One approving review is a starting point. If review is required, also decide whe
 
 ## Merging a labelled pull request
 
-Where neither a ruleset nor auto-merge is available, `.github/workflows/merge-when-green.yml` runs [`ExaDev/merge-when-green`](https://github.com/ExaDev/merge-when-green). A pull request labelled `automerge` is rebase merged once the `Required checks` job in `ci` has passed on its current head commit, it is not a draft and no review thread is unresolved. The job aggregates `validate` and, on pull requests, `commitlint`, so the workflow names one check and a new job is added to that job's `needs` list. `ci` has no path filter, which is what stops a required check from never reporting and leaving the pull request waiting.
+Where neither a ruleset nor auto-merge is available, `.github/workflows/merge-when-green.yml` runs [`ExaDev/merge-when`](https://github.com/ExaDev/merge-when) with the conditions of [`ExaDev/merge-when-green`](https://github.com/ExaDev/merge-when-green) written out. The wrapper is not used, because it calls the inner action by a moving tag, which a pin on the wrapper would not cover; the inner action is pinned by commit, and its own nested action is pinned by commit too. A pull request labelled `automerge` is rebase merged once the `Required checks` job in `ci` has passed on its current head commit, it is not a draft and no review thread is unresolved. The job aggregates `validate` and, on pull requests, `commitlint`, so the workflow names one check and a new job is added to that job's `needs` list. `ci` has no path filter, which is what stops a required check from never reporting and leaving the pull request waiting.
 
 ### Who can authorise a merge
 
