@@ -143,7 +143,7 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   }
   const mergeSteps = merge.jobs.merge.steps;
   const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('verify-authorisation.sh') === true);
-  const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when-green@') === true);
+  const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when@') === true);
   assert.ok(verifyAt >= 0 && verifyAt < actionAt, 'the authorisation is verified before the action runs');
   const jobs = { authorise: merge.jobs.authorise, revoke: merge.jobs.revoke, merge: merge.jobs.merge };
   for (const [name, job] of Object.entries(jobs)) {
@@ -156,11 +156,14 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
       assert.ok(step.run?.includes('${{') !== true, `${name} reaches no shell through an expression`);
     }
   }
-  const inputs = merge.jobs.merge.steps.find((candidate) => candidate.uses?.startsWith('ExaDev/merge-when-green@') === true)?.with;
-  assert.ok(inputs, 'the merge step names a required check');
-  const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === inputs['required-check']);
+  const inputs = merge.jobs.merge.steps.find((candidate) => candidate.uses?.startsWith('ExaDev/merge-when@') === true)?.with;
+  assert.ok(inputs, 'the merge step runs the pinned merge action');
+  const conditions = String(inputs.when).split('\n').filter((line) => line !== '');
+  const requiredCheck = conditions.find((line) => line.startsWith('check: '))?.slice('check: '.length);
+  const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === requiredCheck);
   assert.equal(aggregates.length, 1, 'the required check is exactly one job of ci');
   assert.ok([aggregates[0]?.[1].needs ?? []].flat().includes('validate'), 'the required check aggregates validate');
+  for (const condition of ['label: automerge', 'not-draft', 'threads-resolved']) assert.ok(conditions.includes(condition), `the merge conditions include ${condition}`);
   assert.equal(inputs['merge-method'], 'rebase', 'pull requests are rebase merged');
   assert.ok('workflow_dispatch' in ci.on, 'ci can be dispatched, which is how a merge made with the workflow token starts it');
   assert.match(mergeText, /merge-token: \$\{\{ secrets\.MERGE_TOKEN \|\| github\.token \}\}/, 'the merge secret is an optional override of the workflow token');
@@ -176,8 +179,18 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
     assert.ok(releaseIf.includes('is_template'), 'the release job stays skipped in a template repository');
     assert.ok([ci.jobs.release?.needs ?? []].flat().includes('validate'), 'the release job waits for validate');
   }
-  assert.match(mergeText, /uses: ExaDev\/merge-when-green@[0-9a-f]{40} # v\d+\.\d+\.\d+\n/, 'the action is pinned by commit with a version comment');
   assert.ok(mergeText.includes('!github.event.repository.is_template'), 'a repository marked as a template never runs the merge job');
+}
+
+/** Every `uses:` in a workflow names a full commit with a version comment, so a moved tag can never run with the workflow's tokens. */
+function assertPinnedActions(root: string, file: string): void {
+  const text = readFileSync(join(root, '.github/workflows', file), 'utf8');
+  const uses = text.split('\n').filter((line) => /^\s*(?:- )?uses:/.test(line));
+  assert.ok(uses.length > 0, `${file} uses actions`);
+  for (const line of uses) {
+    if (/uses:\s+\.\//.test(line)) continue;
+    assert.match(line, /uses:\s+[\w./-]+@[0-9a-f]{40} # v\d+(?:\.\d+){0,2}$/, `${file} pins every action by commit with a version comment: ${line.trim()}`);
+  }
 }
 
 /** The ruleset page explains the merge secret for every content set, and the release job's part in it only where there is a release job. */
@@ -220,6 +233,7 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   expectPresent('.github/scripts/review-authority.sh', true);
   expectPresent('.github/scripts/verify-authorisation.sh', true);
   assertMergeWorkflow(root, claude);
+  for (const file of ['ci.yml', 'merge-when-green.yml', 'ci-skip-guard.yml']) assertPinnedActions(root, file);
   assertMergeDocs(root, claude);
   for (const path of ['skills/word-count/SKILL.md', 'skills/house-style/SKILL.md', 'shared/style-guide.md']) expectPresent(path, !claude);
   expectPresent('docs/skills-cli.md', skills);
