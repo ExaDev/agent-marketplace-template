@@ -2,7 +2,7 @@ name: merge-when-green
 
 # For a repository where GitHub's own auto-merge and required status checks are not available: a pull request labelled `automerge` is rebase merged once ci's "Required checks" job has passed on its current head commit, it is not a draft and no review thread is unresolved. It runs when ci finishes, and again when the label is added or the pull request leaves draft, so labelling an already-green pull request merges it at once. Nothing here stops anyone merging by hand; it only saves waiting for the checks.
 #
-# A label authorises one head commit. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request whose head has no such status, so a commit pushed after the label can never be merged on the strength of the earlier one; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself is pinned by merge-when-green to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. None of these jobs checks out or runs pull request code, which is what makes the pull_request_target trigger safe, and every value taken from the event reaches a shell through an environment variable.
+# A label authorises one head commit. When it is applied, the authorise job checks that the person who applied it has write access and that the pull request is from this repository, then, when the merge uses MERGE_TOKEN, which can bypass a ruleset, requires an approval of that head from another writer unless an admin applied the label, and records a commit status on the head commit it saw. The merge job refuses to run the merge for a labelled pull request whose head has no such status, so a commit pushed after the label can never be merged on the strength of the earlier one; the revoke job also removes the label on every push so the pull request shows it needs authorising again. The merge itself is pinned by merge-when-green to the head commit it checked (`gh pr merge --match-head-commit`), which is the commit whose status was verified. Fork pull requests are never authorised. None of these jobs checks out or runs pull request code, which is what makes the pull_request_target trigger safe, and every value taken from the event reaches a shell through an environment variable.
 #
 # The merge uses the MERGE_TOKEN repository secret when there is one and the workflow token otherwise, as ci's release job does with RELEASE_TOKEN. The secret is only an override, for a repository whose ruleset needs a bypass identity to merge. GitHub does not start workflows from a push made with the workflow token, so after such a merge the last step dispatches ci on the default branch, which runs validate and any release job for the merged commits; a merge made with the secret starts ci through the push itself. merge-when-green reports a merge only in its log, so the step checks each pull request that was open at the checked commit for a merge instead.
 
@@ -45,6 +45,9 @@ jobs:
       EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
       ACTOR: ${{ github.event.sender.login }}
+      # Whether the merge uses the repository secret, evaluated here so the secret itself is never compared or exposed.
+      HAS_MERGE_TOKEN: ${{ secrets.MERGE_TOKEN != '' }}
+      REVIEWS_QUERY: 'query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { author { login } latestOpinionatedReviews(first: 100) { nodes { state author { login } commit { oid } } } } } }'
     steps:
       - name: Authorise the head commit
         run: |
@@ -57,10 +60,25 @@ jobs:
             echo "::error::Pull request $NUMBER moved from $EVENT_HEAD to $live after the label was applied; apply it again to the commit you reviewed."
             exit 1
           fi
-          can_write=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission" --jq .user.permissions.push)
-          if [ "$can_write" != true ]; then
+          permission=$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission")
+          if [ "$(jq -r .user.permissions.push <<<"$permission")" != true ]; then
             echo "::error::$ACTOR cannot write to this repository, so the label does not authorise a merge."
             exit 1
+          fi
+          # A bypass identity merges past required review, so then the head also needs an approval from another writer, unless an admin, who can bypass by hand anyway, applied the label.
+          if [ "$HAS_MERGE_TOKEN" = true ] && [ "$(jq -r .user.permissions.admin <<<"$permission")" != true ]; then
+            reviews=$(gh api graphql -F owner="${GITHUB_REPOSITORY%/*}" -F name="${GITHUB_REPOSITORY#*/}" -F number="$NUMBER" -f query="$REVIEWS_QUERY")
+            approvers=$(jq -r --arg head "$live" '.data.repository.pullRequest | . as $pr | if any(.latestOpinionatedReviews.nodes[]; .state == "CHANGES_REQUESTED") then empty else (.latestOpinionatedReviews.nodes[] | select(.state == "APPROVED" and .commit.oid == $head and .author.login != $pr.author.login) | .author.login) end' <<<"$reviews")
+            approved=false
+            for approver in $approvers; do
+              if [ "$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${approver}/permission" --jq .user.permissions.push)" = true ]; then
+                approved=true
+              fi
+            done
+            if [ "$approved" != true ]; then
+              echo "::error::The merge token can bypass required review, so $live needs an approval from someone with write access other than its author, with no change requested, or the label applied by an admin."
+              exit 1
+            fi
           fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${live}" -f state=success -f context="$AUTHORISED_CONTEXT" -f description="Authorised by $ACTOR"
       - name: Remove a label that authorised nothing
