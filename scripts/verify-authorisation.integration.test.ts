@@ -22,10 +22,7 @@ interface Scenario {
   readonly relation?: string;
   readonly jobName?: string;
   readonly jobConclusion?: string;
-  readonly hasMergeToken?: boolean;
-  readonly admins?: readonly string[];
   readonly readOnly?: readonly string[];
-  readonly defaultBranch?: string;
 }
 
 /** A `gh` that answers every call the script makes from a scenario file, whatever flags it passes. */
@@ -34,8 +31,6 @@ target=""
 for arg in "$@"; do case "$arg" in repos/*) target="$arg" ;; esac; done
 case "$1 $2" in
   "pr view") jq -c .pr "$SCENARIO" ;;
-  "api repos/owner/repo") jq -c '{default_branch: .default_branch}' "$SCENARIO" ;;
-  "api graphql") echo '{"data":{"repository":{"pullRequest":{"author":{"login":"author"},"latestOpinionatedReviews":{"nodes":[]}}}}}' ;;
   *)
     case "$target" in
       */timeline) jq -c '[.timeline]' "$SCENARIO" ;;
@@ -44,9 +39,8 @@ case "$1 $2" in
       */actions/runs/*) id=\${target#*/actions/runs/}; jq -c --arg id "$id" '.runs[$id]' "$SCENARIO" ;;
       */compare/*) spec=\${target#*/compare/}; jq -c --arg sha "\${spec%%...*}" '{status: .compare[$sha]}' "$SCENARIO" ;;
       */collaborators/*/permission*) login=\${target#*/collaborators/}; login=\${login%%/permission*}
-        case " $ADMINS " in *" $login "*) admin=true ;; *) admin=false ;; esac
         case " $READ_ONLY " in *" $login "*) push=false ;; *) push=true ;; esac
-        echo "{\\"user\\":{\\"permissions\\":{\\"admin\\":$admin,\\"push\\":$push}}}" ;;
+        echo "{\\"user\\":{\\"permissions\\":{\\"push\\":$push}}}" ;;
       *) echo "unexpected gh call: $*" >&2; exit 99 ;;
     esac ;;
 esac
@@ -58,7 +52,6 @@ function verify(scenario: Scenario): { readonly status: number | null; readonly 
     const base = scenario.base ?? 'main';
     const labeller = (scenario.labellers ?? ['maintainer']).at(-1) ?? '';
     const data = {
-      default_branch: scenario.defaultBranch ?? 'main',
       pr: { headRefOid: scenario.liveHead ?? HEAD, baseRefName: base },
       timeline: [{ event: 'commented' }, ...(scenario.labellers ?? ['maintainer']).map((login) => ({ event: 'labeled', label: { name: 'automerge' }, actor: { login } }))],
       statuses: [{ context: 'merge-when-green/authorised', state: 'success', target_url: scenario.statusUrl ?? `https://github.com/owner/repo/actions/runs/${RUN}` }],
@@ -73,14 +66,12 @@ function verify(scenario: Scenario): { readonly status: number | null; readonly 
       env: {
         PATH: `${join(dir, 'bin')}:${process.env.PATH ?? ''}`,
         SCENARIO: join(dir, 'scenario.json'),
-        ADMINS: (scenario.admins ?? []).join(' '),
         READ_ONLY: (scenario.readOnly ?? []).join(' '),
         GITHUB_REPOSITORY: 'owner/repo',
         NUMBER: '7',
         HEAD_SHA: HEAD,
         LABEL: 'automerge',
         AUTHORISED_CONTEXT: 'merge-when-green/authorised',
-        HAS_MERGE_TOKEN: String(scenario.hasMergeToken ?? false),
       },
     });
 
@@ -117,17 +108,6 @@ void describe('verify-authorisation.sh', () => {
     assert.equal(verify({ relation: 'diverged' }).status, 1);
   });
 
-  void it('lets the bypass token merge only into the default branch', () => {
-    assert.equal(verify({ hasMergeToken: true, admins: ['maintainer'] }).status, 0);
-    const { status, stdout } = verify({ hasMergeToken: true, admins: ['maintainer'], base: 'staging' });
-    assert.equal(status, 1);
-    assert.match(stdout, /only merges into main/);
-  });
-
-  void it('lets the workflow token merge into another base', () => {
-    assert.equal(verify({ hasMergeToken: false, base: 'staging' }).status, 0);
-  });
-
   void it('refuses when the person who applied the label no longer has write access', () => {
     assert.equal(verify({ readOnly: ['maintainer'] }).status, 1);
   });
@@ -146,8 +126,4 @@ void describe('verify-authorisation.sh', () => {
     assert.match(stdout, /moved on/);
   });
 
-  void it('reads the reviews again when the merge token can bypass review', () => {
-    assert.equal(verify({ hasMergeToken: true, admins: ['maintainer'] }).status, 0);
-    assert.equal(verify({ hasMergeToken: true }).status, 1);
-  });
 });

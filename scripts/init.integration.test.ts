@@ -97,10 +97,6 @@ const mergeWorkflowSchema = z.looseObject({
   jobs: z.looseObject({ authorise: mergeJobSchema, revoke: mergeJobSchema, merge: mergeJobSchema }),
 });
 
-function authoriseScriptAll(merge: z.infer<typeof mergeWorkflowSchema>): string {
-  return merge.jobs.authorise.steps.map((step) => step.run ?? '').join('\n');
-}
-
 /**
  * The merge-when-green workflow is core content, so every content set keeps it. It must wait for a job that
  * ci really defines, aggregating `validate`, and run when that ci workflow completes.
@@ -117,29 +113,17 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   assert.equal(merge.jobs.authorise.name, 'authorise #${{ github.event.pull_request.number }} sha=${{ github.event.pull_request.head.sha }} by=${{ github.event.sender.login }} base=${{ github.event.pull_request.base.ref }}', 'the authorise job name records the pull request, head, person and base that verify-authorisation.sh looks for');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('"$live_base" != "$EVENT_BASE"') === true), 'the authorisation is refused when the base moved after the label');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('for $live_base') === true), 'the status description records the base');
-  assert.ok(authoriseScriptAll(merge).includes('.default_branch') && authoriseScriptAll(merge).includes('"$live_base" != "$default_branch"'), 'the bypass token is only authorised against the default branch');
   assert.equal(merge.jobs.merge.needs, 'authorise', 'the merge waits for the authorisation job');
   assert.equal(merge.jobs.authorise.permissions.statuses, 'write', 'the authorise job records the authorisation as a commit status');
   assert.equal(merge.jobs.revoke.permissions['pull-requests'], 'write', 'the revoke job can remove the label');
   assert.ok(merge.jobs.revoke.if.includes("github.event.action == 'synchronize'"), 'the label is removed on every push');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('.user.permissions.push') === true), 'the label authorises only when applied by someone with write access');
   assert.ok(merge.jobs.authorise.steps.some((step) => step.run?.includes('HEAD_REPO') === true), 'a fork pull request is not authorised');
-  assert.equal(merge.jobs.authorise.env?.HAS_MERGE_TOKEN, "${{ secrets.MERGE_TOKEN != '' }}", 'the authorise job learns whether a bypass-capable token is configured without exposing it');
-  const readerCall = 'bash .github/scripts/review-authority.sh';
-  const authoriseScript = merge.jobs.authorise.steps.map((step) => step.run ?? '').join('\n');
-  assert.ok(authoriseScript.includes('"$HAS_MERGE_TOKEN" = true'), 'the approval is only required when a bypass-capable token is configured');
-  assert.ok(authoriseScript.includes(readerCall), 'the authorise job reads the reviews with the shared reader');
-  assert.ok(authoriseScript.indexOf(readerCall) < authoriseScript.indexOf('/statuses/'), 'the approval is checked before the authorisation is recorded');
   const verifyCall = 'bash .github/scripts/verify-authorisation.sh';
   assert.ok(merge.jobs.merge.steps.some((step) => step.run?.includes(verifyCall) === true), 'the merge job verifies the authorisation with the shared script');
   const verify = readFileSync(join(root, '.github/scripts/verify-authorisation.sh'), 'utf8');
-  for (const needle of ['baseRefName', '.default_branch', '"$base" = "$default_branch"', 'expected="authorise #${NUMBER} sha=${HEAD_SHA} by=${labeller} base=${base}"', 'select(.event == "labeled"', '"pull_request_target"', 'merge-when-green.yml', '/compare/', '"$HAS_MERGE_TOKEN" = true', 'review-authority.sh']) {
+  for (const needle of ['baseRefName', 'expected="authorise #${NUMBER} sha=${HEAD_SHA} by=${labeller} base=${base}"', 'select(.event == "labeled"', '"pull_request_target"', 'merge-when-green.yml', '/compare/', '.user.permissions.push']) {
     assert.ok(verify.includes(needle), `the authorisation is checked against the run, base and labeller (${needle})`);
-  }
-  assert.ok(!verify.includes('latestOpinionatedReviews') && !authoriseScript.includes('latestOpinionatedReviews'), 'the review logic lives only in the shared reader');
-  const reader = readFileSync(join(root, '.github/scripts/review-authority.sh'), 'utf8');
-  for (const needle of ['.user.permissions.admin', 'latestOpinionatedReviews', 'state == "APPROVED"', '.commit.oid == $head', '.author.login != $pr.author.login', 'CHANGES_REQUESTED']) {
-    assert.ok(reader.includes(needle), `the shared reader needs an independent approval of the current head or an admin (${needle})`);
   }
   const mergeSteps = merge.jobs.merge.steps;
   const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('verify-authorisation.sh') === true);
@@ -166,9 +150,9 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   for (const condition of ['label: automerge', 'not-draft', 'threads-resolved']) assert.ok(conditions.includes(condition), `the merge conditions include ${condition}`);
   assert.equal(inputs['merge-method'], 'rebase', 'pull requests are rebase merged');
   assert.ok('workflow_dispatch' in ci.on, 'ci can be dispatched, which is how a merge made with the workflow token starts it');
-  assert.match(mergeText, /merge-token: \$\{\{ secrets\.MERGE_TOKEN \|\| github\.token \}\}/, 'the merge secret is an optional override of the workflow token');
-  assert.match(mergeText, /HAS_MERGE_TOKEN: \$\{\{ secrets\.MERGE_TOKEN != '' \}\}/, 'the secret is tested without being exposed');
-  assert.match(mergeText, /if: \$\{\{ env\.HAS_MERGE_TOKEN == 'false' && steps\.open\.outputs\.numbers != '' \}\}/, 'ci is dispatched only for a merge made with the workflow token');
+  assert.match(mergeText, /merge-token: \$\{\{ github\.token \}\}/, 'the merge uses the workflow token, which GitHub holds to the rulesets');
+  assert.match(mergeText, /if: \$\{\{ steps\.open\.outputs\.numbers != '' \}\}/, 'ci is dispatched when a pull request merged');
+  assert.ok(!mergeText.includes('secrets.'), 'the merge workflow reads no secret');
   assert.ok(mergeText.includes('gh workflow run ci.yml'), 'a merge made with the workflow token dispatches ci');
   assert.match(mergeText, /^ {6}actions: write$/m, 'the merge job may dispatch ci');
   assert.match(mergeText, /^ {6}contents: write$/m, 'the merge job may merge with the workflow token');
@@ -193,16 +177,13 @@ function assertPinnedActions(root: string, file: string): void {
   }
 }
 
-/** The ruleset page explains the merge secret for every content set, and the release job's part in it only where there is a release job. */
+/** The ruleset page explains the merge for every content set, and the release job's part in it only where there is a release job. */
 function assertMergeDocs(root: string, claude: boolean): void {
   const rulesets = readFileSync(join(root, 'docs/rulesets.md'), 'utf8');
   assert.ok(rulesets.includes('## Merging a labelled pull request'), 'the merge flow is documented');
-  assert.ok(rulesets.includes('`MERGE_TOKEN` repository secret is an optional override'), 'the merge secret is documented as optional');
-  assert.ok(rulesets.includes('so no secret is needed'), 'the docs do not ask for a secret');
-  assert.ok(rulesets.includes('also requires, before it records the status, an approval of the current head'), 'the docs explain what the bypass token changes');
-  assert.ok(rulesets.includes('reads them again just before the action runs'), 'the docs say the reviews are read again at merge time');
+  assert.ok(rulesets.includes('The merge uses the workflow token'), 'the docs say the merge uses the workflow token');
+  assert.ok(rulesets.includes('There is no supported override'), 'the docs say there is no override');
   assert.ok(rulesets.includes('What invalidates an authorisation: a push (new head commit), a change of the base branch'), 'the docs list what invalidates an authorisation');
-  assert.ok(rulesets.includes('it only ever merges into the default branch'), 'the docs say the bypass token only merges into the default branch');
   assert.equal(rulesets.includes('The dispatched run also starts the `release` job'), claude, 'the release job paragraph belongs to the claude content type only');
   assert.ok(readFileSync(join(root, 'CONTRIBUTING.md'), 'utf8').includes('docs/rulesets.md#merging-a-labelled-pull-request'), 'CONTRIBUTING.md points at the merge flow');
 }
@@ -230,11 +211,15 @@ function assertLayout(root: string, content: readonly SelectableContent[], marke
   assert.equal(/^ {2}release:$/m.test(ci), claude, 'the release job belongs to the claude content type only');
   assert.equal(ci.includes('content:'), false, 'no content marker may survive init');
   expectPresent('.github/workflows/merge-when-green.yml', true);
-  expectPresent('.github/scripts/review-authority.sh', true);
   expectPresent('.github/scripts/verify-authorisation.sh', true);
   assertMergeWorkflow(root, claude);
   for (const file of ['ci.yml', 'merge-when-green.yml', 'ci-skip-guard.yml']) assertPinnedActions(root, file);
   assertMergeDocs(root, claude);
+  for (const [path, text] of listFiles(root)) {
+    if (path === 'pnpm-lock.yaml') continue;
+    assert.ok(!text.includes('MERGE_TOKEN'), `${path} mentions a merge token, which the workflow does not have`);
+  }
+  expectPresent('.github/scripts/review-authority.sh', false);
   for (const path of ['skills/word-count/SKILL.md', 'skills/house-style/SKILL.md', 'shared/style-guide.md']) expectPresent(path, !claude);
   expectPresent('docs/skills-cli.md', skills);
 
