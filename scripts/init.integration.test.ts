@@ -129,6 +129,8 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   const verifyAt = mergeSteps.findIndex((step) => step.run?.includes('verify-authorisation.sh') === true);
   const actionAt = mergeSteps.findIndex((step) => step.uses?.startsWith('ExaDev/merge-when@') === true);
   assert.ok(verifyAt >= 0 && verifyAt < actionAt, 'the authorisation is verified before the action runs');
+  assert.match(mergeText, /^ {6}checks: write$/m, 'the merge job records the check run that clears a verified pull request');
+  assert.ok(mergeSteps[verifyAt]?.run?.includes('check-runs') === true, 'the verifying step records a check run once it has cleared a pull request');
   const jobs = { authorise: merge.jobs.authorise, revoke: merge.jobs.revoke, merge: merge.jobs.merge };
   for (const [name, job] of Object.entries(jobs)) {
     assert.ok(job.if.includes('!github.event.repository.is_template'), `${name} is skipped in a repository marked as a template`);
@@ -147,6 +149,7 @@ function assertMergeWorkflow(root: string, claude: boolean): void {
   const aggregates = Object.entries(ci.jobs).filter(([id, job]) => (job.name ?? id) === requiredCheck);
   assert.equal(aggregates.length, 1, 'the required check is exactly one job of ci');
   assert.ok([aggregates[0]?.[1].needs ?? []].flat().includes('validate'), 'the required check aggregates validate');
+  assert.ok(conditions.includes('check: merge-when-green cleared ${{ github.run_id }}-${{ github.run_attempt }}'), 'the action merges only what the verifying step of this run cleared');
   for (const condition of ['label: automerge', 'not-draft', 'threads-resolved']) assert.ok(conditions.includes(condition), `the merge conditions include ${condition}`);
   assert.equal(inputs['merge-method'], 'rebase', 'pull requests are rebase merged');
   assert.ok('workflow_dispatch' in ci.on, 'ci can be dispatched, which is how a merge made with the workflow token starts it');
