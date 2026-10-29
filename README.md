@@ -1,5 +1,7 @@
 # agent-marketplace-template
 
+[![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white)](https://github.com/ExaDev/agent-marketplace-template) [![CI](https://img.shields.io/github/actions/workflow/status/ExaDev/agent-marketplace-template/ci.yml?branch=main)](https://github.com/ExaDev/agent-marketplace-template/actions)
+
 A template for a plugin marketplace that Claude Code installs from and that skills tooling (the `skills` CLI) can read, so every skill is written once and reaches both. It carries a working example of every Claude Code plugin component type, per-plugin releases, commit linting, CI and the docs a team needs to run it. MIT licensed.
 
 ## Quick start
